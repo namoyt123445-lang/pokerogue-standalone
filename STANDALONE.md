@@ -11,6 +11,7 @@ git clone --recurse-submodules https://github.com/namoyt123445-lang/pokerogue-st
 cd pokerogue-standalone
 pnpm install --ignore-scripts
 pnpm build:standalone
+pnpm test:standalone
 ```
 
 Deploy `dist` as static files on Cloudflare. All assets are hosted on this deployment, not loaded from official servers. The standalone API helper returns a local 503 response instead of making network requests. CSP blocks cross-origin resource requests. Saves use this origin's browser storage; export backups regularly. Online-only features are unavailable.
