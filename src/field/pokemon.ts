@@ -206,6 +206,8 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
    * TODO: Stop treating this like a unique ID and stop treating 0 as no pokemon
    */
   public id: number;
+  /** Stable permanent collection identity, separate from the native battle ID. */
+  public ownershipId?: string | undefined;
   /**
    * The Pokemon's current nickname, or `undefined` if it currently lacks one.
    * If omitted, references to this should refer to the default name for this Pokemon's species.
@@ -359,6 +361,7 @@ export abstract class Pokemon extends Phaser.GameObjects.Container {
     this.exp = dataSource?.exp || getLevelTotalExp(this.level, species.growthRate);
 
     if (dataSource) {
+      this.ownershipId = dataSource.ownershipId;
       this.id = dataSource.id;
       this.hp = dataSource.hp;
       this.stats = dataSource.stats;

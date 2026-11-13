@@ -638,6 +638,9 @@ export async function catchPokemon(
 ): Promise<void> {
   const { gameData, phaseManager, pokemonInfoContainer, ui } = globalScene;
 
+  await preserveParty(globalScene.getPlayerParty());
+  await preserveCapture(pokemon, pokeballType);
+
   const speciesForm = pokemon.fusionSpecies ? pokemon.getFusionSpeciesForm() : pokemon.getSpeciesForm();
 
   if (
@@ -1045,3 +1048,4 @@ export function applyAbilityOverrideToPokemon(pokemon: Pokemon, ability: Ability
     pokemon.customPokemonData.ability = ability;
   }
 }
+import { preserveCapture, preserveParty } from "../../../fan/ownership";

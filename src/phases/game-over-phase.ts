@@ -32,6 +32,7 @@ import { applyChallenges, getRibbonsToAward } from "#utils/challenge-utils";
 import { fixedInt, isLocalServerConnected } from "#utils/common";
 import { ValueHolder } from "#utils/value-holder";
 import i18next from "i18next";
+import { individualOwnershipEnabled, preserveParty } from "../fan/ownership";
 
 export class GameOverPhase extends BattlePhase {
   public readonly phaseName = "GameOverPhase";
@@ -47,6 +48,17 @@ export class GameOverPhase extends BattlePhase {
 
   public override start(): void {
     super.start();
+
+    if (individualOwnershipEnabled) {
+      preserveParty(globalScene.getPlayerParty()).then(() => this.startAfterOwnershipSaved()).catch(error => {
+        window.alert(`Game over is paused until your permanent collection can be saved: ${(error as Error).message}`);
+      });
+      return;
+    }
+    this.startAfterOwnershipSaved();
+  }
+
+  private startAfterOwnershipSaved(): void {
 
     globalScene.phaseManager.hideAbilityBar();
 

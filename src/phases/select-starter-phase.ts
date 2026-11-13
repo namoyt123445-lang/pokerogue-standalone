@@ -11,6 +11,10 @@ import { overrideHeldItems, overrideModifiers } from "#modifiers/modifier";
 import type { Starter } from "#types/save-data";
 import { SaveSlotUiMode } from "#ui/save-slot-select-ui-handler";
 import { applyChallenges } from "#utils/challenge-utils";
+import { chooseOwnedTeam, type TeamSelection } from "../fan/collection-ui";
+import { individualOwnershipEnabled, preserveParty, restoreCompanion } from "../fan/ownership";
+import { collectionTransaction } from "../fan/ownership-store";
+import { SpeciesId } from "#enums/species-id";
 
 export class SelectStarterPhase extends Phase {
   public readonly phaseName = "SelectStarterPhase";
@@ -18,6 +22,33 @@ export class SelectStarterPhase extends Phase {
     super.start();
 
     audioManager.playBgm("menu");
+
+    if (individualOwnershipEnabled) {
+      // Existing session saves are imported only when they are actually resumed/saved.
+      // New runs choose real owned individuals, never dex-unlocked species.
+      chooseOwnedTeam().then(selection => {
+        if (!selection) {
+          globalScene.phaseManager.toTitleScreen();
+          this.end();
+          return;
+        }
+        globalScene.ui.clearText();
+        globalScene.ui.setMode(UiMode.SAVE_SLOT, SaveSlotUiMode.SAVE, (slotId: number) => {
+          if (slotId === -1) { globalScene.phaseManager.toTitleScreen(); this.end(); return; }
+          globalScene.sessionSlotId = slotId;
+          this.initOwnedBattle(selection).catch(error => {
+            window.alert(`Your collection could not be saved. The run was not started: ${(error as Error).message}`);
+            globalScene.phaseManager.toTitleScreen();
+            this.end();
+          });
+        });
+      }).catch(error => {
+        window.alert(`Collection unavailable: ${(error as Error).message}. Existing saves have not been erased.`);
+        globalScene.phaseManager.toTitleScreen();
+        this.end();
+      });
+      return;
+    }
 
     globalScene.ui.setMode(UiMode.STARTER_SELECT, (starters: Starter[]) => {
       globalScene.ui.clearText();
@@ -32,6 +63,29 @@ export class SelectStarterPhase extends Phase {
         this.initBattle(starters);
       });
     });
+  }
+
+  private async initOwnedBattle(selection: TeamSelection): Promise<void> {
+    const party = globalScene.getPlayerParty();
+    if ("starter" in selection) {
+      const save = await collectionTransaction();
+      if (save.starterChosen || save.records.length) throw new Error("A starter has already been chosen. Return and select an owned companion.");
+      const pokemon = globalScene.addPlayerPokemon(
+        speciesDataRegistry.getSpecies(selection.starter as SpeciesId),
+        globalScene.gameMode.getStartingLevel(),
+      );
+      pokemon.setVisible(false);
+      party.push(pokemon);
+    } else {
+      const save = await collectionTransaction();
+      const records = selection.records.map(record => save.records.find(current => current.id === record.id));
+      if (!records.length || records.length > 6 || records.some(record => !record)) throw new Error("Your selected team changed. Choose again.");
+      party.push(...records.map(record => restoreCompanion(record!)));
+    }
+    // Commit individual identities before entering the native battle loop.
+    await preserveParty(party, true, "starter" in selection);
+    await Promise.all(party.map(pokemon => pokemon.loadAssets()));
+    this.beginNativeAdventure();
   }
 
   /**
@@ -109,6 +163,11 @@ export class SelectStarterPhase extends Phase {
     overrideModifiers();
     overrideHeldItems(party[0]);
     Promise.all(loadPokemonAssets).then(() => {
+      this.beginNativeAdventure();
+    });
+  }
+
+  private beginNativeAdventure(): void {
       audioManager.playBgm(undefined, true);
       if (globalScene.gameMode.isClassic) {
         globalScene.gameData.gameStats.classicSessionsPlayed++;
@@ -124,6 +183,5 @@ export class SelectStarterPhase extends Phase {
         globalScene.triggerPokemonFormChange(p, SpeciesFormChangeMoveLearnedTrigger);
       });
       this.end();
-    });
   }
 }

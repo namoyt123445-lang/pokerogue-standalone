@@ -17,6 +17,7 @@ import type { Variant } from "#sprites/variant";
 
 export class PokemonData {
   public id: number;
+  public ownershipId?: string | undefined;
   public player: boolean;
   public species: SpeciesId;
   public nickname: string;
@@ -80,6 +81,7 @@ export class PokemonData {
     const sourcePokemon = source instanceof Pokemon ? source : undefined;
 
     this.id = source.id;
+    this.ownershipId = source.ownershipId;
     this.player = sourcePokemon?.isPlayer() ?? source.player;
     this.species = sourcePokemon?.species.speciesId ?? source.species;
     this.nickname = source.nickname;

@@ -81,6 +81,7 @@ import { toCamelCase } from "#utils/strings";
 import { ValueHolder } from "#utils/value-holder";
 import { AES, enc } from "crypto-js";
 import i18next from "i18next";
+import { preserveParty } from "../fan/ownership";
 
 const ErrorMessages = {
   OUT_OF_DATE: i18next.t("gameData:reloadSaveData"),
@@ -1201,6 +1202,9 @@ export class GameData {
     useCachedSession = false,
     useCachedSystem = false,
   ): Promise<boolean> {
+    // Permanent individuals survive session deletion, retries, releases, and run loss.
+    // Failure aborts the save rather than silently claiming the collection was saved.
+    await preserveParty(globalScene.getPlayerParty());
     if (!skipVerification) {
       const [success] = await updateUserInfo();
       if (!success) {

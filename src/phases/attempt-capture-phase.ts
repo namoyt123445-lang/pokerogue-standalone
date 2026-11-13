@@ -245,6 +245,17 @@ export class AttemptCapturePhase extends PokemonPhase {
   }
 
   catch() {
+    if (individualOwnershipEnabled) {
+      const pokemon = this.getPokemon() as EnemyPokemon;
+      preserveParty(globalScene.getPlayerParty()).then(() => preserveCapture(pokemon, this.pokeballType)).then(() => this.completeOwnedCapture()).catch(error => {
+        window.alert(`Capture is paused because permanent storage failed: ${(error as Error).message}. Free browser storage and reload your last save; the capture has not been discarded.`);
+      });
+      return;
+    }
+    this.completeOwnedCapture();
+  }
+
+  private completeOwnedCapture() {
     const { gameData, phaseManager, pokemonInfoContainer, ui } = globalScene;
     const pokemon = this.getPokemon() as EnemyPokemon;
 
@@ -402,7 +413,7 @@ export class AttemptCapturePhase extends PokemonPhase {
               },
             };
             const promptRelease = (): void => {
-              ui.showText(i18next.t("battle:partyFull", { pokemonName: pokemon.getNameToRender() }), null, () => {
+              ui.showText(individualOwnershipEnabled ? `${pokemon.getNameToRender()} is safe in your permanent PC. Replace a party member? Choosing No keeps it in the PC.` : i18next.t("battle:partyFull", { pokemonName: pokemon.getNameToRender() }), null, () => {
                 ui.setMode(UiMode.OPTION_SELECT, addToPartyMenuConfig);
               });
             };
@@ -428,3 +439,4 @@ export class AttemptCapturePhase extends PokemonPhase {
     });
   }
 }
+import { individualOwnershipEnabled, preserveCapture, preserveParty } from "../fan/ownership";
