@@ -4,7 +4,13 @@ SPDX-FileCopyrightText: 2024-2026 Pagefault Games
 SPDX-License-Identifier: CC-BY-NC-SA-4.0
 -->
 
-<div align="center"><picture><img src="https://github.com/pagefaultgames/pokerogue-assets/blob/beta/images/logo.png?raw=true" width="300" alt="PokéRogue"></picture>
+## Unofficial standalone fan build
+
+**Play:** https://pokerogue-standalone.pages.dev · **Build and deployment:** [STANDALONE.md](./STANDALONE.md)
+
+This repository is an independent fan deployment, not the official game. It uses local browser saves and disables official API connections. Original project documentation and credits follow below.
+
+<div align="center"><picture><img src="./assets/images/logo.png" width="300" alt="PokéRogue"></picture>
 
 [![Discord Static Badge](https://img.shields.io/badge/Community_Discord-blurple?style=flat&logo=discord&logoSize=auto&labelColor=white&color=5865F2)](https://discord.gg/pokerogue)
 [![Test Coverage Endpoint Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Bertie690/9cdfc49361824d1d5a57b7e8b38855d8/raw/coverage-badge.json)](https://github.com/pagefaultgames/pokerogue/actions/workflows/tests.yml) \
