@@ -9,6 +9,7 @@
     "start:dev": "vite --mode development",
     "start:podman": "vite --mode development --host 0.0.0.0 --port $PORT",
     "build": "vite build",
+    "build:standalone": "vite build --mode standalone && node scripts/prepare-standalone.mjs",
     "build:beta": "vite build --mode beta",
     "build:dev": "vite build --mode development",
     "build:app": "vite build --mode app",
@@ -60,6 +61,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.7",
+    "@cloudflare/vite-plugin": "^1.69.1",
     "@commander-js/extra-typings": "^15.0.0",
     "@inquirer/prompts": "^8.7.5",
     "@ls-lint/ls-lint": "2.3.1",
@@ -87,7 +89,8 @@
     "vite": "^8.3.5",
     "vite-node": "^6.0.0",
     "vitest": "^4.1.12",
-    "vitest-canvas-mock": "^1.2.0"
+    "vitest-canvas-mock": "^1.2.0",
+    "wrangler": "^4.161.0"
   },
   "optionalDependencies": {
     "@actions/core": "^3.0.1",

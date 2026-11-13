@@ -96,7 +96,7 @@ export class MenuUiHandler extends OptionSelectUiHandler {
     const { ui } = globalScene;
     // wiki url directs based on languges available on wiki
     const lang = (i18next.resolvedLanguage ?? "en").slice(0, 2);
-    if (["de", "fr", "ko", "zh"].includes(lang)) {
+    if (import.meta.env.MODE !== "standalone" && ["de", "fr", "ko", "zh"].includes(lang)) {
       wikiUrl = `https://wiki.pokerogue.net/${lang}:start`;
     }
 

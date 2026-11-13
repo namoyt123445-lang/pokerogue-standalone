@@ -81,6 +81,13 @@ export abstract class ApiBase {
    * @param config - The request configuration
    */
   protected async doFetch(path: string, config: DoFetchConfig): Promise<Response> {
+    // Standalone builds never send account, telemetry, or save requests.
+    if (import.meta.env.MODE === "standalone") {
+      return new Response(JSON.stringify({ error: "Online services are disabled in this standalone fan build." }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     config.headers = {
       ...config.headers,
       Authorization: getCookie(SESSION_ID_COOKIE_NAME),
