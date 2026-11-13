@@ -11,7 +11,7 @@ import { overrideHeldItems, overrideModifiers } from "#modifiers/modifier";
 import type { Starter } from "#types/save-data";
 import { SaveSlotUiMode } from "#ui/save-slot-select-ui-handler";
 import { applyChallenges } from "#utils/challenge-utils";
-import { chooseOwnedTeam, type TeamSelection } from "../fan/collection-ui";
+import { chooseOwnedTeam, takePreparedTeam, type TeamSelection } from "../fan/collection-ui";
 import { individualOwnershipEnabled, preserveParty, restoreCompanion } from "../fan/ownership";
 import { collectionTransaction } from "../fan/ownership-store";
 import { SpeciesId } from "#enums/species-id";
@@ -26,27 +26,34 @@ export class SelectStarterPhase extends Phase {
     if (individualOwnershipEnabled) {
       // Existing session saves are imported only when they are actually resumed/saved.
       // New runs choose real owned individuals, never dex-unlocked species.
-      chooseOwnedTeam().then(selection => {
-        if (!selection) {
-          globalScene.phaseManager.toTitleScreen();
-          this.end();
-          return;
-        }
-        globalScene.ui.clearText();
-        globalScene.ui.setMode(UiMode.SAVE_SLOT, SaveSlotUiMode.SAVE, (slotId: number) => {
-          if (slotId === -1) { globalScene.phaseManager.toTitleScreen(); this.end(); return; }
-          globalScene.sessionSlotId = slotId;
-          this.initOwnedBattle(selection).catch(error => {
-            window.alert(`Your collection could not be saved. The run was not started: ${(error as Error).message}`);
+      const prepared = takePreparedTeam();
+      (prepared ? Promise.resolve(prepared) : chooseOwnedTeam())
+        .then(selection => {
+          if (!selection) {
             globalScene.phaseManager.toTitleScreen();
             this.end();
+            return;
+          }
+          globalScene.ui.clearText();
+          globalScene.ui.setMode(UiMode.SAVE_SLOT, SaveSlotUiMode.SAVE, (slotId: number) => {
+            if (slotId === -1) {
+              globalScene.phaseManager.toTitleScreen();
+              this.end();
+              return;
+            }
+            globalScene.sessionSlotId = slotId;
+            this.initOwnedBattle(selection).catch(error => {
+              window.alert(`Your collection could not be saved. The run was not started: ${(error as Error).message}`);
+              globalScene.phaseManager.toTitleScreen();
+              this.end();
+            });
           });
+        })
+        .catch(error => {
+          window.alert(`Collection unavailable: ${(error as Error).message}. Existing saves have not been erased.`);
+          globalScene.phaseManager.toTitleScreen();
+          this.end();
         });
-      }).catch(error => {
-        window.alert(`Collection unavailable: ${(error as Error).message}. Existing saves have not been erased.`);
-        globalScene.phaseManager.toTitleScreen();
-        this.end();
-      });
       return;
     }
 
@@ -69,7 +76,8 @@ export class SelectStarterPhase extends Phase {
     const party = globalScene.getPlayerParty();
     if ("starter" in selection) {
       const save = await collectionTransaction();
-      if (save.starterChosen || save.records.length) throw new Error("A starter has already been chosen. Return and select an owned companion.");
+      if (save.starterChosen || save.records.length)
+        throw new Error("A starter has already been chosen. Return and select an owned companion.");
       const pokemon = globalScene.addPlayerPokemon(
         speciesDataRegistry.getSpecies(selection.starter as SpeciesId),
         globalScene.gameMode.getStartingLevel(),
@@ -79,7 +87,8 @@ export class SelectStarterPhase extends Phase {
     } else {
       const save = await collectionTransaction();
       const records = selection.records.map(record => save.records.find(current => current.id === record.id));
-      if (!records.length || records.length > 6 || records.some(record => !record)) throw new Error("Your selected team changed. Choose again.");
+      if (!records.length || records.length > 6 || records.some(record => !record))
+        throw new Error("Your selected team changed. Choose again.");
       party.push(...records.map(record => restoreCompanion(record!)));
     }
     // Commit individual identities before entering the native battle loop.
@@ -168,20 +177,20 @@ export class SelectStarterPhase extends Phase {
   }
 
   private beginNativeAdventure(): void {
-      audioManager.playBgm(undefined, true);
-      if (globalScene.gameMode.isClassic) {
-        globalScene.gameData.gameStats.classicSessionsPlayed++;
-      } else {
-        globalScene.gameData.gameStats.endlessSessionsPlayed++;
-      }
-      globalScene.newBattle();
-      globalScene.arena.init();
-      globalScene.sessionPlayTime = 0;
-      globalScene.lastSavePlayTime = 0;
-      // Ensures Keldeo (or any future Pokemon that have this type of form change) starts in the correct form
-      globalScene.getPlayerParty().forEach(p => {
-        globalScene.triggerPokemonFormChange(p, SpeciesFormChangeMoveLearnedTrigger);
-      });
-      this.end();
+    audioManager.playBgm(undefined, true);
+    if (globalScene.gameMode.isClassic) {
+      globalScene.gameData.gameStats.classicSessionsPlayed++;
+    } else {
+      globalScene.gameData.gameStats.endlessSessionsPlayed++;
+    }
+    globalScene.newBattle();
+    globalScene.arena.init();
+    globalScene.sessionPlayTime = 0;
+    globalScene.lastSavePlayTime = 0;
+    // Ensures Keldeo (or any future Pokemon that have this type of form change) starts in the correct form
+    globalScene.getPlayerParty().forEach(p => {
+      globalScene.triggerPokemonFormChange(p, SpeciesFormChangeMoveLearnedTrigger);
+    });
+    this.end();
   }
 }

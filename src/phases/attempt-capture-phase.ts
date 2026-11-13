@@ -247,9 +247,14 @@ export class AttemptCapturePhase extends PokemonPhase {
   catch() {
     if (individualOwnershipEnabled) {
       const pokemon = this.getPokemon() as EnemyPokemon;
-      preserveParty(globalScene.getPlayerParty()).then(() => preserveCapture(pokemon, this.pokeballType)).then(() => this.completeOwnedCapture()).catch(error => {
-        window.alert(`Capture is paused because permanent storage failed: ${(error as Error).message}. Free browser storage and reload your last save; the capture has not been discarded.`);
-      });
+      preserveParty(globalScene.getPlayerParty())
+        .then(() => preserveCapture(pokemon, this.pokeballType))
+        .then(() => this.completeOwnedCapture())
+        .catch(error => {
+          window.alert(
+            `Capture is paused because permanent storage failed: ${(error as Error).message}. Free browser storage and reload your last save; the capture has not been discarded.`,
+          );
+        });
       return;
     }
     this.completeOwnedCapture();
@@ -325,6 +330,13 @@ export class AttemptCapturePhase extends PokemonPhase {
           });
         };
         Promise.all([pokemon.hideInfo(), gameData.setPokemonCaught(pokemon)]).then(() => {
+          if (
+            shouldStoreCaptureInPc(individualOwnershipEnabled, globalScene.getPlayerParty().length, addStatus.value)
+          ) {
+            removePokemon();
+            ui.showText(`${pokemon.getNameToRender()} was sent to your PC Box!`, null, end, 0, true);
+            return;
+          }
           if (!addStatus.value) {
             removePokemon();
             end();
@@ -413,7 +425,7 @@ export class AttemptCapturePhase extends PokemonPhase {
               },
             };
             const promptRelease = (): void => {
-              ui.showText(individualOwnershipEnabled ? `${pokemon.getNameToRender()} is safe in your permanent PC. Replace a party member? Choosing No keeps it in the PC.` : i18next.t("battle:partyFull", { pokemonName: pokemon.getNameToRender() }), null, () => {
+              ui.showText(i18next.t("battle:partyFull", { pokemonName: pokemon.getNameToRender() }), null, () => {
                 ui.setMode(UiMode.OPTION_SELECT, addToPartyMenuConfig);
               });
             };
@@ -440,3 +452,4 @@ export class AttemptCapturePhase extends PokemonPhase {
   }
 }
 import { individualOwnershipEnabled, preserveCapture, preserveParty } from "../fan/ownership";
+import { shouldStoreCaptureInPc } from "../fan/ownership-store";

@@ -705,6 +705,17 @@ export async function catchPokemon(
         });
       };
       Promise.all([pokemon.hideInfo(), gameData.setPokemonCaught(pokemon)]).then(() => {
+        if (
+          shouldStoreCaptureInPc(
+            individualOwnershipEnabled,
+            globalScene.getPlayerParty().length,
+            isObtain || addStatus.value,
+          )
+        ) {
+          removePokemon();
+          ui.showText(`${pokemon.getNameToRender()} was sent to your PC Box!`, null, end, 0, true);
+          return;
+        }
         if (!(isObtain || addStatus.value)) {
           removePokemon();
           end();
@@ -1048,4 +1059,5 @@ export function applyAbilityOverrideToPokemon(pokemon: Pokemon, ability: Ability
     pokemon.customPokemonData.ability = ability;
   }
 }
-import { preserveCapture, preserveParty } from "../../../fan/ownership";
+import { individualOwnershipEnabled, preserveCapture, preserveParty } from "../../../fan/ownership";
+import { shouldStoreCaptureInPc } from "../../../fan/ownership-store";
