@@ -3,11 +3,11 @@
 ## Native hub rebuild
 
 The latest revision uses a dedicated native UI mode, not a text option menu.
-There is **no Trainer Hub landing page**. Open **Egg Gacha** from the title/menu:
-its native background, voucher counters and footer are retained, with Pokémon
-feature icons replacing the machines. Left/right selects a feature; click or
-confirm opens its separate full-screen page. Back returns to Egg Gacha.
-Existing vouchers remain stored and displayed, not spent by feature selection.
+There is **no Trainer Hub landing page**. Egg Gacha uses its original machines,
+voucher pulls, navigation and layout. Added features are separate ordinary text
+entries in the native title/menu: Boxes, Daycare, Breeding, Quests and Gem Rewards.
+Cloudflare hosting and account cloud saves remain enabled. No save migration or
+data reset is needed for this menu change.
 Artwork
 uses actual existing Pokémon portrait, egg, map and Gem item atlases, plus the
 credited non-commercial Day-Care tile by PkmnAlexandrite/Maxewenx. Rejected

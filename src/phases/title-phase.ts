@@ -27,7 +27,7 @@ import i18next from "i18next";
 import { individualOwnershipEnabled } from "../fan/ownership";
 import { getAccountUser, syncCloud } from "../../standalone-public/cloud.js";
 import { setArenaBackgroundTexture } from "../fan/arena-background";
-import { installDaycareStatus } from "../fan/daycare";
+import { installDaycareStatus, openDaycare } from "../fan/daycare";
 import { materializeDaycareCollection } from "../fan/ownership";
 import { openNativeAccount } from "../fan/account-ui";
 
@@ -209,6 +209,11 @@ export class TitlePhase extends Phase {
       handler: () => { ui.setOverlayMode(UiMode.EGG_GACHA); return true; },
       keepOpen: true,
     });
+    if (individualOwnershipEnabled) {
+      ["Pokémon Boxes", "Daycare", "Breeding", "Quests", "Gem Rewards"].forEach((label, index) => {
+        options.push({ label, handler: () => openDaycare(index), keepOpen: true });
+      });
+    }
     if (individualOwnershipEnabled) options.push({
       label: getAccountUser() ? "Account / Cloud save" : "Log in / Create account",
       keepOpen: true,

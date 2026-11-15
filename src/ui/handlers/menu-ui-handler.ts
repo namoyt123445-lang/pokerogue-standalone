@@ -1,4 +1,5 @@
 import { pokerogueApi } from "#api/api";
+import { openDaycare } from "../../fan/daycare";
 import { loggedInUser, updateUserInfo } from "#app/account";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
@@ -203,6 +204,11 @@ export class MenuUiHandler extends OptionSelectUiHandler {
       } satisfies OptionSelectItem;
     });
 
+    if (import.meta.env.MODE === "standalone") {
+      ["Pokémon Boxes", "Daycare", "Breeding", "Quests", "Gem Rewards"].forEach((label, index) => {
+        options.push({ label, handler: () => openDaycare(index), keepOpen: true });
+      });
+    }
     return {
       options,
       maxOptions: 10,

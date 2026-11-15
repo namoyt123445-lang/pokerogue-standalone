@@ -31,7 +31,7 @@ export function openDaycare(initialTab = 1): boolean {
 }
 export async function openDaycareScreen(initialTab = 1): Promise<boolean> {
   if (!canManageCollectionAtPhase(globalScene.phaseManager.getCurrentPhase().phaseName)) {
-    globalScene.ui.showText("Save and quit your run, then open Egg Gacha from the title screen.", null, () => globalScene.ui.showText(""), 1500);
+    globalScene.ui.showText("Save and quit your run, then open this feature from the title screen.", null, () => globalScene.ui.showText(""), 1500);
     return false;
   }
   if (!getAccountUser()) return openNativeAccount();
