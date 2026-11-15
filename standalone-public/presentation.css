@@ -1,0 +1,20 @@
+/* Presentation only: no replacement game menus, layout changes, or input layer. */
+html[data-fan-presentation] {
+  background: #102b32;
+}
+html[data-fan-presentation] body {
+  background:
+    radial-gradient(ellipse at 50% 20%, #143c4766, #071c2be8),
+    linear-gradient(#102b32aa, #102b32aa),
+    url("/title-landscape.png") center / cover fixed;
+}
+html[data-fan-presentation] #app canvas {
+  box-shadow: 0 24px 90px #00121999, 0 0 0 1px #b9e2d62b;
+}
+@media (display-mode: fullscreen) {
+  html[data-fan-presentation] body { background: #000; }
+  html[data-fan-presentation] #app canvas { box-shadow: none; }
+}
+@media (pointer: coarse) {
+  html[data-fan-presentation] body { background-attachment: scroll; }
+}

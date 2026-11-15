@@ -2,6 +2,7 @@ import { pokerogueApi } from "#api/api";
 import { bypassLogin } from "#constants/app-constants";
 import type { UserInfo } from "#types/api";
 import { randomString } from "#utils/common";
+import { getAccountUser } from "../standalone-public/cloud.js";
 
 export let loggedInUser: UserInfo | null = null;
 
@@ -20,7 +21,7 @@ export async function updateUserInfo(): Promise<[success: boolean, status: numbe
   }
 
   loggedInUser = {
-    username: "Guest",
+    username: import.meta.env.MODE === "standalone" ? getAccountUser()?.username ?? "Guest" : "Guest",
     lastSessionSlot: -1,
     discordId: "",
     googleId: "",
@@ -37,7 +38,7 @@ export async function updateUserInfo(): Promise<[success: boolean, status: numbe
   // TODO: This fallback has existed for 20 MONTHS by now; review if we need it anymore
   for (const d of ["data", "sessionData", "sessionData1", "sessionData2", "sessionData3", "sessionData4"]) {
     const lsItem = localStorage.getItem(d);
-    if (lsItem) {
+    if (lsItem && loggedInUser.username === "Guest") {
       const lsUserItem = localStorage.getItem(`${d}_${loggedInUser.username}`);
       if (lsUserItem) {
         localStorage.setItem(`${d}_${loggedInUser.username}_bak`, lsUserItem);

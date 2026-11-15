@@ -33,6 +33,7 @@ export class TitleUiHandler extends OptionSelectUiHandler {
   private splashMessageText: Phaser.GameObjects.Text;
 
   private splashMessage: string;
+  private cloudStatus = "";
 
   private titleStatsTimer: NodeJS.Timeout | null;
 
@@ -51,7 +52,7 @@ export class TitleUiHandler extends OptionSelectUiHandler {
       ? usernameReplacement
       : (loggedInUser?.username ?? i18next.t("common:guest"));
 
-    return i18next.t("menu:loggedInAs", { username: displayName });
+    return i18next.t("menu:loggedInAs", { username: displayName }) + this.cloudStatus;
   }
 
   private updateUsername(): void {
@@ -70,6 +71,16 @@ export class TitleUiHandler extends OptionSelectUiHandler {
       .setName("title")
       .setAlpha(0);
     ui.add(this.titleContainer);
+    if (import.meta.env.MODE === "standalone") {
+      this.titleContainer.add(globalScene.add.image(0, 0, "fan_title_landscape")
+        .setOrigin(0).setDisplaySize(width, height));
+      // The original logo, windows, option handlers and controls stay unchanged.
+      window.addEventListener("fan-cloud-status", (event: Event) => {
+        this.cloudStatus = (event as CustomEvent).detail === "saved"
+          ? " · Cloud saved" : " · Check Account: cloud not saved";
+        this.updateUsername();
+      });
+    }
 
     const logo = globalScene.add
       .image(width / 2, 8, this.getLogo()) // formatting
@@ -284,6 +295,6 @@ export class TitleUiHandler extends OptionSelectUiHandler {
       },
     });
 
-    this.titleContainer.addAt(this.snow, 0);
+    this.titleContainer.addAt(this.snow, import.meta.env.MODE === "standalone" ? 1 : 0);
   }
 }

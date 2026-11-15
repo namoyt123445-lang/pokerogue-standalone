@@ -1,0 +1,11 @@
+{
+  "name": "pokerogue-standalone",
+  "pages_build_output_dir": "dist",
+  "compatibility_date": "2026-11-15",
+  "d1_databases": [{
+    "binding": "ACCOUNTS",
+    "database_name": "pokerogue-accounts",
+    "database_id": "dd407d25-f0b3-4e60-947e-d26f866f281d",
+    "preview_database_id": "dd407d25-f0b3-4e60-947e-d26f866f281d"
+  }]
+}

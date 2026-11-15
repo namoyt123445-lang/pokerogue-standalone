@@ -25,4 +25,19 @@ const about = await readFile("dist/about.html", "utf8");
 assert(about.includes("https://github.com/namoyt123445-lang/pokerogue-standalone"));
 const headers = await readFile("dist/_headers", "utf8");
 assert(headers.includes("connect-src 'self'"));
-console.log("Standalone checks passed: JSON routing, manifests, missing files, metadata, and same-origin policy.");
+const routes = JSON.parse(await readFile("dist/_routes.json", "utf8"));
+assert(routes.include.includes("/api/fan/*"));
+assert.equal((await worker.fetch(new Request("https://example.test/api/fan/me"),env)).status,503);
+const account = await readFile("dist/account.html", "utf8");
+assert(account.includes('autocomplete="current-password"'));
+assert(account.includes("No email recovery"));
+assert(html.includes("data-fan-presentation"));
+for (const file of ["account-page.js","account.css","cloud.js","privacy.html","title-landscape.png","presentation.css"]) {
+  assert((await readFile(`dist/${file}`)).length > 0, file);
+}
+for (const biome of ["town","plains","grass","meadow","forest"]) {
+  const png = await readFile(`dist/images/arenas/${biome}_bg.png`);
+  assert.equal(png.readUInt32BE(16),320,`${biome} width`);
+  assert.equal(png.readUInt32BE(20),180,`${biome} height`);
+}
+console.log("Standalone checks passed: JSON routing, accounts, title artwork, manifests, metadata, and same-origin policy.");

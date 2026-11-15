@@ -17,13 +17,13 @@ This is an integration into the original Phaser game, not a replacement battle e
 
 ## Current boundaries
 
-- Local persistence only in this increment; separate-account cloud storage and authentication are still pending.
+- Username/password accounts and account-scoped cloud snapshots are now implemented; see `ACCOUNTS.md` for security, migration, deployment, and limitations.
 - Battles remain client-side, as in the existing standalone game. Server-authoritative battles and anti-cheat are not claimed.
 - Box access, organization, and deliberate releases are restricted to New Game setup. Calls from battle phases are rejected. In-progress native parties cannot be swapped with boxed Pokémon.
 - Native battle mechanics, evolution, Mega forms, items, abilities, modes, dex, sprites, and battle summaries are reused, including their existing supported/unimplemented mechanics.
 - Daily Run is hidden in standalone ownership mode: its official-server seed and generated loan team do not fit the offline, owned-team-only flow. Classic and unlocked endless/challenge modes keep their native mode selection before party setup.
 - Held modifiers and run-only boosts remain native run state. They are not promoted to permanent inventory by this increment. Mega/primal/Gmax forms are reset on new-run restoration, not treated as permanent new identities.
-- Candy spending, Stardust power-ups, XL Candy, expanded HOME features, quests/events, additional exploration abilities, and account/database migrations remain later phases.
+- Candy spending, Stardust power-ups, XL Candy, expanded HOME features, quests/events, additional exploration abilities, email recovery, and social login remain later phases.
 - Clearing site data deletes the collection. Do not clear site data to refresh an update. Native run-save exports are not complete collection backups.
 
 ## Tests

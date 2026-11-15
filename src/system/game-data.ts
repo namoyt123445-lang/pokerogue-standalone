@@ -284,6 +284,7 @@ export class GameData {
     );
 
     localStorage.setItem(`data_${loggedInUser?.username}`, encrypt(systemData, bypassLogin));
+    if (import.meta.env.MODE === "standalone") window.dispatchEvent(new CustomEvent("fan-native-save"));
 
     if (bypassLogin) {
       globalScene.ui.savingIcon.hide();
@@ -1256,6 +1257,7 @@ export class GameData {
     );
 
     console.debug(`Session data saved to slot ${globalScene.sessionSlotId}!`);
+    if (import.meta.env.MODE === "standalone") window.dispatchEvent(new CustomEvent("fan-native-save"));
 
     if (bypassLogin || !sync) {
       const verified = await this.verify();

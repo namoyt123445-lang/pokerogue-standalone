@@ -1,3 +1,4 @@
+import { collectionKey } from "../../standalone-public/cloud.js";
 /** Permanent individual ownership, independent of PokéRogue's starter-unlock dex. */
 export interface PokemonSnapshot {
   id: number;
@@ -127,12 +128,13 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 /** IndexedDB serializes read/write transactions, including actions from other tabs. */
 export async function collectionTransaction(change?: (save: CollectionSave) => void): Promise<CollectionSave> {
+  const key = collectionKey();
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction("collection", change ? "readwrite" : "readonly");
     const store = tx.objectStore("collection");
     let result: CollectionSave, failure: unknown;
-    const read = store.get("save");
+    const read = store.get(key);
     read.onsuccess = () => {
       try {
         result = read.result ?? newCollection();
@@ -140,7 +142,7 @@ export async function collectionTransaction(change?: (save: CollectionSave) => v
           change(result);
           validateCollection(result);
           result.revision++;
-          store.put(result, "save");
+          store.put(result, key);
         }
       } catch (error) {
         failure = error;

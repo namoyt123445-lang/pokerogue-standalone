@@ -25,6 +25,7 @@ import { SaveSlotUiMode } from "#ui/save-slot-select-ui-handler";
 import { isLocalServerConnected } from "#utils/common";
 import i18next from "i18next";
 import { individualOwnershipEnabled } from "../fan/ownership";
+import { getAccountUser, syncCloud } from "../../standalone-public/cloud.js";
 
 const NO_SAVE_SLOT = -1;
 
@@ -195,6 +196,13 @@ export class TitlePhase extends Phase {
         keepOpen: true,
       },
     );
+    if (individualOwnershipEnabled) options.push({
+      label: getAccountUser() ? "Account / Cloud save" : "Log in / Create account",
+      handler: () => {
+        void syncCloud().catch(console.error).finally(() => { window.location.href = "/account.html"; });
+        return true;
+      },
+    });
     const config: OptionSelectModeConfig = { options, blockCancelButton: true };
     await ui.setMode(UiMode.TITLE, config);
   }

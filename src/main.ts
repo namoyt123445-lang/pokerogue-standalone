@@ -18,6 +18,15 @@ if (isBeta || isDev) {
 preventDoubleTapZoom();
 
 async function startGame(): Promise<void> {
+  if (import.meta.env.MODE === "standalone") {
+    const { bootstrapAccounts } = await import("../standalone-public/cloud.js");
+    try {
+      await bootstrapAccounts();
+    } catch {
+      window.location.replace("/account.html?notice=sync");
+      return;
+    }
+  }
   const { initSettingsManager } = await import("#app/global-settings-manager");
   const { initGlobalAudioManager } = await import("#app/global-audio-manager");
 
