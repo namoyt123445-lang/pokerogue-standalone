@@ -167,3 +167,20 @@ test("the timer displays real elapsed duration without midnight resets",()=>{
   assert.equal(formatDaycareTime(3723000),"01h 02m 03s");
   assert.equal(formatDaycareTime(-1),"00h 00m 00s");
 });
+test("trial quests validate progress on the server and pay only once",async()=>{
+  const f=await fixture();
+  let view=await f.call("");
+  assert.equal(view.quests.length,5);
+  assert.equal(view.quests.find(q=>q.id==="collection-5").progress,5);
+  assert.equal((await f.call("quest",{questId:"victories-50"})).status,400);
+  assert.equal((await f.call("quest",{questId:"invented"})).status,400);
+  const id=crypto.randomUUID();
+  view=await f.call("quest",{questId:"collection-5"},NOW,id);
+  assert.equal(view.state.gems,40);
+  assert.equal(view.quests.find(q=>q.id==="collection-5").claimed,true);
+  assert.equal((await f.call("quest",{questId:"collection-5"},NOW,id)).state.gems,40);
+  assert.equal((await f.call("quest",{questId:"collection-5"})).status,400);
+  for(let i=0;i<10;i++) await f.call("battle",{eventId:`quest:${i}`});
+  view=await f.call("quest",{questId:"victories-10"});
+  assert.equal(view.state.gems,52);
+});

@@ -7,6 +7,8 @@ import { GameManager } from "#test/framework/game-manager";
 import type { StarterSelectUiHandler } from "#ui/starter-select-ui-handler";
 import { initialStarterCandidates, restoreCompanion } from "../../../src/fan/ownership";
 import type { OwnedRecord, PokemonSnapshot } from "../../../src/fan/ownership-store";
+import { TrainerHub } from "../../../src/fan/daycare";
+import * as daycareClient from "../../../standalone-public/daycare-client.js";
 import Phaser from "phaser";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -71,5 +73,20 @@ describe("Native PokéRogue owned-party integration", () => {
     expect(child.getMaxHp()).toBeGreaterThan(0);
     expect(blueprint.data.stats).toEqual([]);
     child.destroy();
+
+    vi.spyOn(daycareClient,"getDaycareStatus").mockReturnValue({
+      state:{gems:30,slots:1,eggs:[],legendaryNextAt:0,daily:{battles:0}},
+      rules:{slotPrices:[25]},parents:[],quests:[],
+    });
+    const hub=new TrainerHub({});
+    hub.open();
+    await vi.waitUntil(()=>game.scene.ui.mode===UiMode.OPTION_SELECT);
+    const hubHandler=game.scene.ui.getHandler();
+    expect(hubHandler.processInput(Button.RIGHT)).toBe(true);
+    expect(hub["tab"]).toBe(2);
+    expect(hubHandler.processInput(Button.LEFT)).toBe(true);
+    expect(hub["tab"]).toBe(1);
+    expect(document.querySelector("iframe")).toBeNull();
+    game.scene.ui.revertMode();
   });
 });

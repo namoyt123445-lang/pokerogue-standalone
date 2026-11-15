@@ -41,14 +41,22 @@ async function daycareView(db,user,now) {
     data:{species:record.data.species,gender:record.data.gender,fusionSpecies:record.data.fusionSpecies||0},
     level:record.data.level,shiny:!!record.data.shiny,
   }));
-  return {user,revision:row.revision,state,parents,serverNow:now,rules:DAYCARE_RULES};
+  const hatchCount=await db.prepare("SELECT COUNT(*) AS n FROM daycare_grants WHERE user_id=?").bind(user.id).first();
+  const quests=[
+    {id:"collection-5",name:"Growing collection",description:"Own 5 individual Pokémon",progress:parents.length,goal:5,gems:10},
+    {id:"collection-15",name:"Pokémon collector",description:"Own 15 individual Pokémon",progress:parents.length,goal:15,gems:20},
+    {id:"victories-10",name:"Finding your stride",description:"Win 10 Daycare-counted battles",progress:state.totalBattles,goal:10,gems:10},
+    {id:"victories-50",name:"Battle explorer",description:"Win 50 Daycare-counted battles",progress:state.totalBattles,goal:50,gems:20},
+    {id:"hatch-1",name:"A new beginning",description:"Hatch 1 Daycare egg",progress:Number(hatchCount?.n||0),goal:1,gems:10},
+  ].map(q=>({...q,claimed:!!state.questClaims?.includes(q.id)}));
+  return {user,revision:row.revision,state,parents,quests,serverNow:now,rules:DAYCARE_RULES};
 }
 export async function handleDaycare(path,request,user,db,input,now=Date.now()) {
   if(path==="daycare/catalog"&&request.method==="GET") return {data:{catalog:BREEDING_SPECIES}};
   if(path==="daycare"&&request.method==="GET") return {data:await daycareView(db,user,now)};
   if(!path.startsWith("daycare/")||request.method!=="POST") return {status:404,data:{error:"Not found."}};
   const action=path.slice(8);
-  if(!["daily","task","slot","breed","hatch","battle"].includes(action)) return {status:404,data:{error:"Not found."}};
+  if(!["daily","task","slot","breed","hatch","battle","quest"].includes(action)) return {status:404,data:{error:"Not found."}};
   if(!input||input.userId!==user.id) return {status:409,data:{error:"Account changed. Reload before continuing."}};
   if(!Number.isInteger(input.revision)||!/^[a-f0-9-]{36}$/.test(input.requestId||"")) return {status:400,data:{error:"Invalid daycare request."}};
   const receipt=await db.prepare("SELECT kind,receipt FROM daycare_requests WHERE user_id=? AND request_id=?").bind(user.id,input.requestId).first();
@@ -65,7 +73,13 @@ export async function handleDaycare(path,request,user,db,input,now=Date.now()) {
   const cloud=await readCloudSave(db,user.id);
   let egg,grant,payload,eventId;
   try {
-    if(action==="daily") {
+    if(action==="quest") {
+      const view=await daycareView(db,user,now);
+      const quest=view.quests.find(q=>q.id===input.questId);
+      if(!quest||quest.claimed||quest.progress<quest.goal) throw new Error("This quest is not ready to claim.");
+      state.questClaims??=[];state.questClaims.push(quest.id);state.gems+=quest.gems;
+      journal(state,now,`Quest: ${quest.name}`,quest.gems);
+    } else if(action==="daily") {
       if(now<state.dailyNextAt) throw new Error("Your daily Gems are not ready yet.");
       state.gems+=DAYCARE_RULES.dailyGems;state.dailyNextAt=now+DAYCARE_RULES.cooldownMs;
       journal(state,now,"Daily Gems",DAYCARE_RULES.dailyGems);

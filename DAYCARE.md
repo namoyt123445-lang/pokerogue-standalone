@@ -1,5 +1,20 @@
 # First playable Daycare increment (priorities 1–5)
 
+## Native hub rebuild
+
+The standalone Daycare page now redirects to the game. Breeding Center opens a
+native pixel-window hub on the title screen. Left/right changes tabs: Pokémon
+Boxes (owned-individual browser), Daycare, Breeding, Quests and Gems/Rewards.
+Up/down selects rows, confirm activates, cancel closes. Existing eggs remain
+accessible in Daycare; Egg Gacha is no longer offered in standalone menus.
+Vouchers and legacy egg data are retained, not deleted or converted.
+
+Trial one-time quests: own 5 Pokémon (+10 Gems), own 15 (+20), win 10 battles
+(+10), win 50 (+20), hatch one Daycare egg (+10). Collection quests count current
+owned individuals including starters and offspring, not a separate historical
+capture total. Server progress validation and claim receipts prevent repeat
+payouts. These initial quests are intentionally simple for user approval.
+
 ## Included
 
 1. **Save protection:** additive D1 tables, three previous server save revisions,

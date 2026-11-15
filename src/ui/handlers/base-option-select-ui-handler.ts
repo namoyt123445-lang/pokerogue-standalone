@@ -376,6 +376,11 @@ export abstract class BaseOptionSelectUiHandler<T extends OptionSelectItem> exte
 
   public override processInput(button: Button): boolean {
     const ui = this.getUi();
+    if (!this.blockInput && this.config?.onHorizontal && (button === Button.LEFT || button === Button.RIGHT)) {
+      this.config.onHorizontal(button === Button.LEFT ? -1 : 1);
+      ui.playSelect();
+      return true;
+    }
 
     let success = false;
     let playSound = true;

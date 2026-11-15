@@ -598,13 +598,7 @@ export class MenuUiHandler extends OptionSelectUiHandler {
         break;
       case MenuOptions.EGG_GACHA:
         if (import.meta.env.MODE === "standalone") {
-          ui.setOverlayMode(UiMode.OPTION_SELECT, { options: [
-            { label: "Breeding & Daycare", handler: () => openDaycare() },
-            { label: "Legacy Egg Gacha (vouchers)", handler: () => { ui.revertMode(); ui.revertMode(); ui.setOverlayMode(UiMode.EGG_GACHA); return true; } },
-            { label: "Existing eggs", handler: () => { ui.revertMode(); return this.optionSelected(MenuOptions.EGG_LIST); } },
-            { label: i18next.t("menu:cancel"), handler: () => { ui.revertMode(); return true; } },
-          ] });
-          success = true;
+          success = openDaycare();
           break;
         }
         ui.revertMode();

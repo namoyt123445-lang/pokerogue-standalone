@@ -36,7 +36,7 @@ assert(html.includes("data-fan-presentation"));
 for (const file of ["account-page.js","account.css","cloud.js","privacy.html","title-landscape.png","presentation.css"]) {
   assert((await readFile(`dist/${file}`)).length > 0, file);
 }
-for(const file of ["daycare.html","daycare.css","daycare-page.js","daycare-client.js","breeding-rules.js","breeding-data-license.txt"]) {
+for(const file of ["daycare.html","daycare-client.js","breeding-rules.js","breeding-data-license.txt"]) {
   assert((await readFile(`dist/${file}`)).length>0,file);
 }
 assert.equal((await worker.fetch(new Request("https://example.test/api/fan/daycare"),env)).status,503);

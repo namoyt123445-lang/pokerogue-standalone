@@ -51,6 +51,8 @@ export interface LayoutConfig {
 export interface OptionSelectModeConfig<T extends OptionSelectItem = OptionSelectItem> extends OptionMenuSettings {
   /** The {@linkcode OptionSelectItem}s to display. */
   options: T[];
+  /** Optional horizontal tab navigation, used by the standalone trainer hub. */
+  onHorizontal?: (direction: -1 | 1) => void;
 }
 
 /** General settings for how a menu should behave */
