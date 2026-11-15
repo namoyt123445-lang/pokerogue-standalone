@@ -1,4 +1,5 @@
 import { globalScene } from "#app/global-scene";
+import { setArenaBackgroundTexture } from "../fan/arena-background";
 import type { BiomeId } from "#enums/biome-id";
 import { getBiomeKey } from "#field/arena";
 import { BattlePhase } from "#phases/battle-phase";
@@ -44,7 +45,7 @@ export class SwitchBiomePhase extends BattlePhase {
 
         const biomeKey = getBiomeKey(this.nextBiome);
         const bgTexture = `${biomeKey}_bg`;
-        globalScene.arenaBgTransition.setTexture(bgTexture);
+        setArenaBackgroundTexture(globalScene.arenaBgTransition, bgTexture);
         globalScene.arenaBgTransition.setAlpha(0);
         globalScene.arenaBgTransition.setVisible(true);
         globalScene.arenaPlayerTransition.setBiome(this.nextBiome);
@@ -58,7 +59,7 @@ export class SwitchBiomePhase extends BattlePhase {
           ease: "Sine.easeInOut",
           alpha: (target: any) => (target === globalScene.arenaPlayer ? 0 : 1),
           onComplete: () => {
-            globalScene.arenaBg.setTexture(bgTexture);
+            setArenaBackgroundTexture(globalScene.arenaBg, bgTexture);
             globalScene.arenaPlayer.setBiome(this.nextBiome);
             globalScene.arenaPlayer.setAlpha(1);
             globalScene.arenaEnemy.setBiome(this.nextBiome);

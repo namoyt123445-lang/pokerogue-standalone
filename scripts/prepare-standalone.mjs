@@ -1,5 +1,6 @@
 import { cp, mkdir, readdir, readFile, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
+import { biomeScenery } from "../src/fan/biome-scenery.ts";
 
 // Vite's minify-public-json-files plugin already ships assets and locales.
 await mkdir("dist", { recursive: true });
@@ -20,12 +21,10 @@ await writeFile("dist/manifest.webmanifest", JSON.stringify({
   icons: [{ src: "/logo512.png", sizes: "512x512", type: "image/png" }],
 }));
 await cp("standalone-public", "dist", { recursive: true });
-// Replace only selected flat outdoor backdrops; preserve the native Pokémon,
-// battle platforms, windows, animation, biome shaders, and hit/input geometry.
-for (const biome of ["town", "plains", "grass", "meadow"]) {
-  await cp("standalone-public/scenery/meadow.png", `dist/images/arenas/${biome}_bg.png`);
+// Preserve native texture keys and gameplay geometry, but ship HD source pixels.
+for (const [, biome] of biomeScenery) {
+  await cp(`standalone-public/scenery/biomes/${biome}.png`, `dist/images/arenas/${biome}_bg.png`);
 }
-await cp("standalone-public/scenery/forest.png", "dist/images/arenas/forest_bg.png");
 // Cloudflare Pages free deployments allow 20,000 files. Preserve every JSON
 // resource in same-origin packs; the Pages worker restores its original URL.
 // Permit a static-art refresh of an already prepared build without nesting or

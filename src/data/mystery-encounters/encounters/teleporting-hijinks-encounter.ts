@@ -1,4 +1,5 @@
 import { CLASSIC_MODE_MYSTERY_ENCOUNTER_WAVES } from "#app/constants";
+import { setArenaBackgroundTexture } from "../../../fan/arena-background";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
 import { getPokemonNameWithAffix } from "#app/messages";
@@ -273,7 +274,7 @@ async function animateBiomeChange(nextBiome: BiomeId): Promise<void> {
     alpha: (target: any) => (target === globalScene.arenaPlayer ? 0 : 1),
   });
 
-  globalScene.arenaBg.setTexture(bgTexture);
+  setArenaBackgroundTexture(globalScene.arenaBg, bgTexture);
   globalScene.arenaPlayer //
     .setAlpha(1)
     .setBiome(nextBiome);

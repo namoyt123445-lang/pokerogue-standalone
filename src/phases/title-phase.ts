@@ -26,6 +26,7 @@ import { isLocalServerConnected } from "#utils/common";
 import i18next from "i18next";
 import { individualOwnershipEnabled } from "../fan/ownership";
 import { getAccountUser, syncCloud } from "../../standalone-public/cloud.js";
+import { setArenaBackgroundTexture } from "../fan/arena-background";
 
 const NO_SAVE_SLOT = -1;
 
@@ -75,7 +76,7 @@ export class TitlePhase extends Phase {
       const biomeKey = getBiomeKey(sessionData.arena.biome);
       const bgTexture = `${biomeKey}_bg`;
       await globalScene.loadBiomeAssets(sessionData.arena.biome);
-      globalScene.arenaBg.setTexture(bgTexture);
+      setArenaBackgroundTexture(globalScene.arenaBg, bgTexture);
       return loggedInUser.lastSessionSlot;
     } catch (err) {
       console.error(err);

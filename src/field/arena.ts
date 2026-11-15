@@ -1,4 +1,5 @@
 import { applyAbAttrs } from "#abilities/apply-ab-attrs";
+import { setArenaBackgroundTexture } from "../fan/arena-background";
 import { timedEventManager } from "#app/global-event-manager";
 import { globalScene } from "#app/global-scene";
 import { speciesDataRegistry } from "#app/global-species-data-registry";
@@ -146,8 +147,8 @@ export class Arena {
     globalScene.arenaPlayerTransition.setBiome(this.biomeId);
     globalScene.arenaEnemy.setBiome(this.biomeId);
     globalScene.arenaNextEnemy.setBiome(this.biomeId);
-    globalScene.arenaBg.setTexture(`${biomeKey}_bg`);
-    globalScene.arenaBgTransition.setTexture(`${biomeKey}_bg`);
+    setArenaBackgroundTexture(globalScene.arenaBg, `${biomeKey}_bg`);
+    setArenaBackgroundTexture(globalScene.arenaBgTransition, `${biomeKey}_bg`);
 
     // Redo this on initialize because during save/load the current wave isn't always
     // set correctly during construction

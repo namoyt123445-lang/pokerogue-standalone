@@ -5,9 +5,9 @@ Code, worker, database schema, and original title artwork are in this repository
 The title retains the native PokéRogue menu and adds an Account entry, linking to
 `/account.html`. The new lakeside pixel-art landscape is original generated art,
 inspired by classic handheld adventure games, not a ripped game screenshot.
-The presentation pass also adds matching page framing and detailed 320×180
-meadow/forest battle backdrops for the starting outdoor routes. Other biomes keep
-their original art; native Pokémon sprites, platforms, windows and controls are unchanged.
+The presentation pass now includes distinct 1280×720 scenery for all 35 native
+biomes and matching page framing. See `HD_SCENERY.md`; native Pokémon sprites,
+platforms, windows and controls are unchanged.
 
 ## Included
 

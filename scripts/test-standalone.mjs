@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { biomeScenery } from "../src/fan/biome-scenery.ts";
 
 const code = await readFile("dist/_worker.js", "utf8");
 const { default: worker } = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
@@ -35,9 +36,11 @@ assert(html.includes("data-fan-presentation"));
 for (const file of ["account-page.js","account.css","cloud.js","privacy.html","title-landscape.png","presentation.css"]) {
   assert((await readFile(`dist/${file}`)).length > 0, file);
 }
-for (const biome of ["town","plains","grass","meadow","forest"]) {
+for (const [, biome] of biomeScenery) {
   const png = await readFile(`dist/images/arenas/${biome}_bg.png`);
-  assert.equal(png.readUInt32BE(16),320,`${biome} width`);
-  assert.equal(png.readUInt32BE(20),180,`${biome} height`);
+  assert.equal(png.readUInt32BE(16),1280,`${biome} width`);
+  assert.equal(png.readUInt32BE(20),720,`${biome} height`);
 }
+const gallery = await readFile("dist/biome-gallery.html","utf8");
+assert.equal((gallery.match(/<figure>/g) || []).length,35);
 console.log("Standalone checks passed: JSON routing, accounts, title artwork, manifests, metadata, and same-origin policy.");

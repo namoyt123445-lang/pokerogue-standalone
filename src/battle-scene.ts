@@ -157,6 +157,7 @@ import { decodeNickname } from "#utils/pokemon-utils";
 import { capitalizeFirstLetterOnly } from "#utils/strings";
 import i18next from "i18next";
 import Phaser from "phaser";
+import { setArenaBackgroundTexture } from "./fan/arena-background";
 
 export type PokeballCounts = Record<Exclude<PokeballType, PokeballType.LUXURY_BALL>, number>;
 
@@ -449,6 +450,8 @@ export class BattleScene extends SceneBase {
       .setOrigin(0)
       .setSize(320, 240)
       .setVisible(false);
+    setArenaBackgroundTexture(this.arenaBg, `${biomeKey}_bg`);
+    setArenaBackgroundTexture(this.arenaBgTransition, `${biomeKey}_bg`);
 
     this.field = this.add //
       .container(0, 0)

@@ -72,6 +72,7 @@ export class TitleUiHandler extends OptionSelectUiHandler {
       .setAlpha(0);
     ui.add(this.titleContainer);
     if (import.meta.env.MODE === "standalone") {
+      globalScene.textures.get("fan_title_landscape").setFilter(1);
       this.titleContainer.add(globalScene.add.image(0, 0, "fan_title_landscape")
         .setOrigin(0).setDisplaySize(width, height));
       // The original logo, windows, option handlers and controls stay unchanged.
