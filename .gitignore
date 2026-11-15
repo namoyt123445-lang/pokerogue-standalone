@@ -51,3 +51,4 @@ game-data-output/*
 
 # Full-size generation masters; the complete 1280x720 shipped artwork is tracked.
 /art/biomes/
+/.local-test/

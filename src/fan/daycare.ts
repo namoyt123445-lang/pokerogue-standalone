@@ -8,6 +8,7 @@ import { canManageCollectionAtPhase } from "./ownership-store";
 import { UiMode } from "#enums/ui-mode";
 import type { OptionSelectItem, OptionSelectModeConfig } from "#types/ui-types";
 import { materializeDaycareCollection } from "./ownership";
+import { TrainerHubArt } from "./trainer-hub-art";
 
 const installed = new WeakSet<object>();
 export function installDaycareStatus(): void {
@@ -48,22 +49,33 @@ export function openDaycare(): boolean {
 }
 
 /** Native window/cursor/text controls: no DOM overlay or external navigation. */
+interface HubArtwork { draw(tab: number): void; destroy(): void }
 export class TrainerHub {
   private tab = 1;
+  private art: HubArtwork | null = null;
   private busy = false;
   private notice = "";
   private readonly tabs = ["Pokémon Boxes", "Daycare", "Breeding", "Quests", "Gems / Rewards"];
-  constructor(private catalog: Record<string, { name: string }>) {}
+  constructor(private catalog: Record<string, { name: string }>,
+    private createArt: (navigate: (tab: number) => void) => HubArtwork = navigate => new TrainerHubArt(navigate)) {}
 
   private item(label: string, action: () => void): OptionSelectItem {
     return { label, keepOpen: true, handler: () => { if (!this.busy) action(); return true; } };
   }
   private heading(label: string): OptionSelectItem { return { label, selectable: false, handler: () => false }; }
-  open(): void { globalScene.ui.setOverlayMode(UiMode.OPTION_SELECT, this.config()); }
+  open(): void {
+    this.art = this.createArt(tab => {
+      if (this.busy) return;
+      this.tab = tab; this.notice = ""; this.show();
+    });
+    this.art.draw(this.tab);
+    globalScene.ui.setOverlayMode(UiMode.OPTION_SELECT, this.config());
+  }
   private show(options?: OptionSelectItem[]): void {
+    this.art?.draw(this.tab);
     const handler = globalScene.ui.getHandler();
     handler.clear();
-    handler.show([options ? { options, maxOptions: 9 } : this.config()]);
+    handler.show([options ? { options, maxOptions: 5 } : this.config()]);
   }
   private async run(action: () => Promise<unknown>): Promise<void> {
     if (this.busy) return;
@@ -145,8 +157,8 @@ export class TrainerHub {
       options.push(this.heading("Every 10 victories: +2 Gems (daily cap)"));
       options.push(this.item("Refresh progress", () => { void this.run(async () => { await flushDaycareBattles(); await refreshDaycare(); }); }));
     }
-    options.push(this.item("Close", () => globalScene.ui.revertMode()));
-    return { options, maxOptions: 9, onHorizontal: direction => {
+    options.push(this.item("Close", () => { this.art?.destroy(); globalScene.ui.revertMode(); }));
+    return { options, maxOptions: 5, onHorizontal: direction => {
       if (this.busy) return;
       this.tab = (this.tab + direction + this.tabs.length) % this.tabs.length;
       this.notice = ""; this.show();

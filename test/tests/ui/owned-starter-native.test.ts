@@ -78,7 +78,9 @@ describe("Native PokéRogue owned-party integration", () => {
       state:{gems:30,slots:1,eggs:[],legendaryNextAt:0,daily:{battles:0}},
       rules:{slotPrices:[25]},parents:[],quests:[],
     });
-    const hub=new TrainerHub({});
+    // Headless fixture has no texture uploader; verify menu behavior separately.
+    const artwork={draw:vi.fn(),destroy:vi.fn()};
+    const hub=new TrainerHub({},()=>artwork);
     hub.open();
     await vi.waitUntil(()=>game.scene.ui.mode===UiMode.OPTION_SELECT);
     const hubHandler=game.scene.ui.getHandler();
@@ -86,6 +88,7 @@ describe("Native PokéRogue owned-party integration", () => {
     expect(hub["tab"]).toBe(2);
     expect(hubHandler.processInput(Button.LEFT)).toBe(true);
     expect(hub["tab"]).toBe(1);
+    expect(artwork.draw).toHaveBeenCalledWith(2);
     expect(document.querySelector("iframe")).toBeNull();
     game.scene.ui.revertMode();
   });

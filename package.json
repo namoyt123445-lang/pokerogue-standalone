@@ -4,6 +4,7 @@
   "version": "1.12.2.6",
   "type": "module",
   "scripts": {
+    "start:local": "node scripts/serve-local.mjs",
     "start:prod": "vite --mode production",
     "start:beta": "vite --mode beta",
     "start:dev": "vite --mode development",

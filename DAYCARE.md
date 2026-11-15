@@ -2,6 +2,15 @@
 
 ## Native hub rebuild
 
+Local graphical revision: the hub now has original pixel-sprite tabs (PC, nursery,
+egg, quest scroll and Gem), a native full-screen window, selection highlights and
+clickable tabs/arrows. Left/right keyboard navigation is retained.
+
+To test without publishing: build the standalone output, then run `pnpm start:local`
+and open `http://127.0.0.1:8000`. Local test accounts/saves live only in ignored
+`.local-test/accounts.sqlite`; use a separate test account. The local server
+never connects to production D1 or proxies live login sessions.
+
 The standalone Daycare page now redirects to the game. Breeding Center opens a
 native pixel-window hub on the title screen. Left/right changes tabs: Pokémon
 Boxes (owned-individual browser), Daycare, Breeding, Quests and Gems/Rewards.
