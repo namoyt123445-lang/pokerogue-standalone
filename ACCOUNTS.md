@@ -11,6 +11,11 @@ platforms, windows and controls are unchanged.
 
 ## Included
 
+The first Gems/Daycare/Breeding increment is documented in `DAYCARE.md`.
+Its currency, slot unlocks and 24-hour cooldowns are server-owned and deliberately
+separate from native game snapshots. Prior native save revisions are retained
+for backup; hatch grants are preserved when an older snapshot is uploaded.
+
 - Case-insensitive unique usernames, 12–128 character passwords, login and logout.
 - PBKDF2-SHA256 salted password hashes (100,000 iterations); random session tokens
   stored hashed on the server. Secure, HttpOnly, SameSite=Strict session cookies.

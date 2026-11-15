@@ -1,3 +1,5 @@
+import { packSave,unpackSave,preserveDaycareGrants,saveBackupStatements,guardStatement } from "./save-store.mjs";
+import { handleDaycare } from "./daycare.mjs";
 const COOKIE = "__Host-pokerogue_session";
 const MAX_BODY = 8 * 1024 * 1024;
 const TTL = 30 * 86400;
@@ -6,19 +8,6 @@ const hex = bytes => [...new Uint8Array(bytes)].map(v => v.toString(16).padStart
 const unhex = value => Uint8Array.from(value.match(/../g), v => parseInt(v, 16));
 const random = size => hex(crypto.getRandomValues(new Uint8Array(size)));
 const hash = async value => hex(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
-async function packSave(save) {
-  const json = JSON.stringify(save);
-  if (encoder.encode(json).length < 128000) return json;
-  const compressed = new Uint8Array(await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
-  let binary = "";
-  for (let i=0;i<compressed.length;i+=32768) binary += String.fromCharCode(...compressed.subarray(i,i+32768));
-  return `gzip:${btoa(binary)}`;
-}
-async function unpackSave(payload) {
-  if (!payload.startsWith("gzip:")) return JSON.parse(payload);
-  const bytes = Uint8Array.from(atob(payload.slice(5)),c=>c.charCodeAt(0));
-  return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
-}
 export async function passwordHash(password, salt) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   return hex(await crypto.subtle.deriveBits({name:"PBKDF2", hash:"SHA-256", salt:unhex(salt), iterations:100000}, key, 256));
@@ -77,7 +66,7 @@ export function validSnapshot(save) {
   const c = save.collection;
   return c && c.schema === 1 && Array.isArray(c.records) && c.records.length <= 10000
     && typeof c.starterChosen === "boolean" && typeof c.candy === "object" && typeof c.stardust === "number"
-    && Array.isArray(c.transfers) && Number.isInteger(c.revision);
+    && Array.isArray(c.transfers) && Array.isArray(c.boxes) && Number.isInteger(c.revision);
 }
 export async function handleAccounts(request, env) {
   const url = new URL(request.url);
@@ -124,6 +113,19 @@ export async function handleAccounts(request, env) {
     }
     const user = await session(request,db);
     if (!user) return reply({error:"Please log in again."},401);
+    if(path==="daycare"||path.startsWith("daycare/")) {
+      if(request.method!=="GET"&&!await limit(request,db,`daycare:${user.id}`,120,60)) return reply({error:"Please wait before trying another Daycare action."},429);
+      const result=await handleDaycare(path,request,user,db,request.method==="POST"?await body(request):null);
+      return reply(result.data,result.status||200);
+    }
+    if(path==="save/backups"&&request.method==="GET") {
+      const rows=await db.prepare("SELECT revision,updated_at FROM save_backups WHERE user_id=? ORDER BY revision DESC LIMIT 3").bind(user.id).all();
+      return reply({backups:rows.results});
+    }
+    if(/^save\/backups\/\d+$/.test(path)&&request.method==="GET") {
+      const row=await db.prepare("SELECT payload FROM save_backups WHERE user_id=? AND revision=?").bind(user.id,Number(path.split("/").pop())).first();
+      return row?reply({save:await unpackSave(row.payload)}):reply({error:"Backup not found."},404);
+    }
     if (path === "save" && request.method === "GET") {
       const row = await db.prepare("SELECT revision,payload,updated_at FROM saves WHERE user_id=?").bind(user.id).first();
       return reply({user,revision:row?.revision || 0,save:row ? await unpackSave(row.payload) : null,updatedAt:row?.updated_at || null});
@@ -133,13 +135,20 @@ export async function handleAccounts(request, env) {
       const input = await body(request);
       if (input.userId !== user.id) return reply({error:"Account changed. Reload before saving."},409);
       if (!Number.isInteger(input.revision) || input.revision < 0 || !validSnapshot(input.save)) return reply({error:"Invalid save data."},400);
+      await preserveDaycareGrants(db,user.id,input.save);
       const payload = await packSave(input.save), now = Date.now();
       if (encoder.encode(payload).length > 1800000) return reply({error:"Cloud save is too large. Download a device backup; your local progress is still safe."},413);
-      const result = input.revision === 0
-        ? await db.prepare("INSERT OR IGNORE INTO saves(user_id,revision,payload,updated_at) VALUES (?,1,?,?)").bind(user.id,payload,now).run()
-        : await db.prepare("UPDATE saves SET revision=revision+1,payload=?,updated_at=? WHERE user_id=? AND revision=?").bind(payload,now,user.id,input.revision).run();
-      if (!result.meta.changes) return reply({error:"Cloud save changed on another tab or device. Open Account to resolve it."},409);
-      return reply({user,revision:input.revision+1,updatedAt:now});
+      const guard=crypto.randomUUID();
+      const update=input.revision===0
+        ? db.prepare("INSERT OR IGNORE INTO saves(user_id,revision,payload,updated_at) VALUES (?,1,?,?)").bind(user.id,payload,now)
+        : db.prepare("UPDATE saves SET revision=revision+1,payload=?,updated_at=? WHERE user_id=? AND revision=?").bind(payload,now,user.id,input.revision);
+      try {
+        await db.batch([...saveBackupStatements(db,user.id),update,guardStatement(db,guard),db.prepare("DELETE FROM transaction_guards WHERE id=?").bind(guard)]);
+      } catch(error) {
+        if(/constraint|CHECK/i.test(error.message)) return reply({error:"Cloud save changed on another tab or device. Open Account to resolve it."},409);
+        throw error;
+      }
+      return reply({user,revision:input.revision+1,updatedAt:now,collection:input.save.collection});
     }
     return reply({error:"Not found."},404);
   } catch (error) {

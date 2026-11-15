@@ -1,4 +1,5 @@
 import { pokerogueApi } from "#api/api";
+import { openDaycare } from "../../fan/daycare";
 import { loggedInUser, updateUserInfo } from "#app/account";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
@@ -196,7 +197,8 @@ export class MenuUiHandler extends OptionSelectUiHandler {
       }
 
       return {
-        label: `${i18next.t(`menuUiHandler:${toCamelCase(MenuOptions[option])}`)}`,
+        label: import.meta.env.MODE === "standalone" && option === MenuOptions.EGG_GACHA
+          ? "Breeding Center" : `${i18next.t(`menuUiHandler:${toCamelCase(MenuOptions[option])}`)}`,
         handler: () => this.optionSelected(option),
         keepOpen: true,
         ...conditionalOpts,
@@ -595,6 +597,16 @@ export class MenuUiHandler extends OptionSelectUiHandler {
         }
         break;
       case MenuOptions.EGG_GACHA:
+        if (import.meta.env.MODE === "standalone") {
+          ui.setOverlayMode(UiMode.OPTION_SELECT, { options: [
+            { label: "Breeding & Daycare", handler: () => openDaycare() },
+            { label: "Legacy Egg Gacha (vouchers)", handler: () => { ui.revertMode(); ui.revertMode(); ui.setOverlayMode(UiMode.EGG_GACHA); return true; } },
+            { label: "Existing eggs", handler: () => { ui.revertMode(); return this.optionSelected(MenuOptions.EGG_LIST); } },
+            { label: i18next.t("menu:cancel"), handler: () => { ui.revertMode(); return true; } },
+          ] });
+          success = true;
+          break;
+        }
         ui.revertMode();
         ui.setOverlayMode(UiMode.EGG_GACHA);
         success = true;

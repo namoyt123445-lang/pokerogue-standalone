@@ -27,6 +27,8 @@ import i18next from "i18next";
 import { individualOwnershipEnabled } from "../fan/ownership";
 import { getAccountUser, syncCloud } from "../../standalone-public/cloud.js";
 import { setArenaBackgroundTexture } from "../fan/arena-background";
+import { installDaycareStatus, openDaycare } from "../fan/daycare";
+import { materializeDaycareCollection } from "../fan/ownership";
 
 const NO_SAVE_SLOT = -1;
 
@@ -38,6 +40,10 @@ export class TitlePhase extends Phase {
 
   async start(): Promise<void> {
     super.start();
+    if (individualOwnershipEnabled) {
+      await materializeDaycareCollection();
+      installDaycareStatus();
+    }
 
     globalScene.ui.clearText();
     globalScene.ui.fadeIn(250);
@@ -197,6 +203,10 @@ export class TitlePhase extends Phase {
         keepOpen: true,
       },
     );
+    if (individualOwnershipEnabled) options.push({
+      label: "Breeding Center / Daycare",
+      handler: () => openDaycare(),
+    });
     if (individualOwnershipEnabled) options.push({
       label: getAccountUser() ? "Account / Cloud save" : "Log in / Create account",
       handler: () => {

@@ -58,5 +58,18 @@ describe("Native PokéRogue owned-party integration", () => {
     expect(repaired.level).toBe(data.level);
     expect(repaired.moveset.length).toBeGreaterThan(0);
     repaired.destroy();
+    const blueprint = structuredClone(record);
+    blueprint.id=crypto.randomUUID();
+    blueprint.data={...blueprint.data,ownershipId:blueprint.id,daycareBlueprint:true,level:5,exp:0,moveset:[],stats:[],ivs:[1,2,3,4,5,6]};
+    game.override.playerIVs(null);
+    const child=restoreCompanion(blueprint);
+    expect(child.ownershipId).toBe(blueprint.id);
+    expect(child.id).toBe(blueprint.data.id);
+    expect(child.level).toBe(5);
+    expect(child.ivs).toEqual([1,2,3,4,5,6]);
+    expect(child.moveset.length).toBeGreaterThan(0);
+    expect(child.getMaxHp()).toBeGreaterThan(0);
+    expect(blueprint.data.stats).toEqual([]);
+    child.destroy();
   });
 });

@@ -2,6 +2,7 @@ import { applyAbAttrs } from "#abilities/apply-ab-attrs";
 import { globalScene } from "#app/global-scene";
 import { LapsingPersistentModifier, LapsingPokemonHeldItemModifier } from "#modifiers/modifier";
 import { BattlePhase } from "#phases/battle-phase";
+import { queueDaycareBattle } from "../../standalone-public/daycare-client.js";
 
 export class BattleEndPhase extends BattlePhase {
   public readonly phaseName = "BattleEndPhase";
@@ -33,6 +34,9 @@ export class BattleEndPhase extends BattlePhase {
     }
 
     if (this.isVictory) {
+      if (import.meta.env.MODE === "standalone") {
+        queueDaycareBattle(`${globalScene.gameMode.modeId}:${globalScene.seed}:${waveIndex}`);
+      }
       currentBattle.addBattleScore();
 
       if (trainer) {

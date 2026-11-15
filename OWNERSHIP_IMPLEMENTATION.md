@@ -14,6 +14,7 @@ This is an integration into the original Phaser game, not a replacement battle e
 - Captures award family candy and Stardust. Deliberate professor transfers award family candy. Currency spending/upgrades are not included in this increment.
 - IndexedDB read/write transactions serialize collection changes across tabs. Invalid operations abort instead of committing partial transfers.
 - Existing local run and system saves are not overwritten or erased by migration. Resume an existing run and reach a save boundary to register its party.
+- Gems, Daycare slots and breeding are now available through the standalone Breeding Center; see `DAYCARE.md` for the implemented first-five priorities and explicit limitations. Existing Gacha eggs and vouchers remain accessible.
 
 ## Current boundaries
 

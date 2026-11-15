@@ -83,10 +83,39 @@ export async function writeSnapshot(save, revision) {
   await remember(save,revision);
 }
 export async function uploadSnapshot(save, revision) {
+  const previousIds=new Set(save.collection.records.map(r=>r.id));
   const result = await api("save","PUT",{userId:activeUser.id,revision,save});
   if (result.user.id !== activeUser.id) throw new Error("Account changed. Reload the page.");
+  if(result.collection) {
+    const missing=result.collection.records.filter(r=>!previousIds.has(r.id));
+    if(missing.length) await mergeOwnedGrants(missing);
+    save.collection=result.collection;
+  }
   await remember(save,result.revision);
   return result;
+}
+async function mergeOwnedGrants(records) {
+  const db=await new Promise((resolve,reject)=>{
+    const req=indexedDB.open("pokerogue-fan-ownership",1);
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  });
+  try {
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction("collection","readwrite"),store=tx.objectStore("collection"),req=store.get(collectionKey());
+      req.onsuccess=()=>{
+        const c=req.result||emptyCollection();
+        for(const record of records) {
+          if(c.records.some(r=>r.id===record.id)) continue;
+          let n=0;while(c.records.some(r=>r.location==="pc"&&r.box===Math.floor(n/30)&&r.slot===n%30)) n++;
+          const box=Math.floor(n/30);
+          if(!c.boxes.some(b=>b.id===box))c.boxes.push({id:box,name:`Box ${box+1}`,background:"forest"});
+          c.records.push({...record,location:"pc",box,slot:n%30});c.revision++;
+        }
+        store.put(c,collectionKey());
+      };
+      tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(tx.error);
+    });
+  } finally {db.close();}
 }
 export async function reconcile() {
   if (!activeUser) return;

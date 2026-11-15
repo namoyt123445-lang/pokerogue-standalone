@@ -23,3 +23,37 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   count INTEGER NOT NULL,
   expires_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS save_backups (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  revision INTEGER NOT NULL,
+  payload TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY(user_id,revision)
+);
+CREATE TABLE IF NOT EXISTS daycare_states (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  revision INTEGER NOT NULL DEFAULT 0,
+  state TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS daycare_requests (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  receipt TEXT NOT NULL,
+  PRIMARY KEY(user_id,request_id)
+);
+CREATE TABLE IF NOT EXISTS daycare_battles (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL,
+  PRIMARY KEY(user_id,event_id)
+);
+CREATE TABLE IF NOT EXISTS daycare_grants (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  egg_id TEXT NOT NULL,
+  record TEXT NOT NULL,
+  PRIMARY KEY(user_id,egg_id)
+);
+CREATE TABLE IF NOT EXISTS transaction_guards (
+  id TEXT PRIMARY KEY,
+  ok INTEGER NOT NULL CHECK(ok=1)
+);

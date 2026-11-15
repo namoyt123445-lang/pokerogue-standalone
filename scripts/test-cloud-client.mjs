@@ -11,9 +11,11 @@ globalThis.indexedDB={open() {
     request.result={
       close(){},
       transaction(){
+        let pending=0;
+        const schedule=fn=>{pending++;queueMicrotask(()=>{fn();pending--;if(!pending)queueMicrotask(()=>{if(!pending)tx.oncomplete?.();});});};
         const tx={objectStore(){return {
-          get(key) {const req={};queueMicrotask(()=>{req.result=structuredClone(collection.get(key));tx.oncomplete?.();});return req;},
-          put(value,key) {const req={};queueMicrotask(()=>{collection.set(key,structuredClone(value));tx.oncomplete?.();});return req;},
+          get(key) {const req={};schedule(()=>{req.result=structuredClone(collection.get(key));req.onsuccess?.();});return req;},
+          put(value,key) {const req={};schedule(()=>{collection.set(key,structuredClone(value));req.onsuccess?.();});return req;},
         };}};
         return tx;
       },
@@ -32,6 +34,14 @@ globalThis.fetch=async(path,options)=>{
   if(input.userId!==serverUser?.id) return respond({error:"Account changed"},409);
   if(input.revision!==revision || mode==="conflict") return respond({error:"Cloud changed"},409);
   remote=structuredClone(input.save);revision++;
+  if(mode==="grant") {
+    remote.collection.records.push({id:"protected-egg",data:{species:1,daycareBlueprint:true},location:"pc",box:0,slot:1});
+    const concurrent=structuredClone(collection.get("account:account-one"));
+    concurrent.records[0].data.level=51;
+    concurrent.records.push({id:"new-capture",data:{species:4},location:"pc",box:0,slot:1});
+    collection.set("account:account-one",concurrent);
+    return respond({user:serverUser,revision,collection:remote.collection});
+  }
   return respond({user:serverUser,revision});
 };
 let serial=0;
@@ -66,6 +76,19 @@ test("sync uploads account progress, remembers revision and does not repeat unch
 });
 test("empty accounts do not create cloud data before choosing to play or import",async()=>{
   const c=await fresh();await c.syncCloud();assert.equal(remote,null);
+});
+test("server-protected hatch grants merge without overwriting concurrent party progress or captures",async()=>{
+  const c=await fresh();
+  localStorage.setItem("data_TrainerOne","native-eggs-and-vouchers");
+  await c.collectionStorage(c.collectionKey(),{...c.emptyCollection(),starterChosen:true,records:[
+    {id:"parent",data:{species:1,level:50},location:"pc",box:0,slot:0},
+  ]});
+  mode="grant";await c.syncCloud();
+  const local=await c.readSnapshot();
+  assert.equal(local.collection.records[0].data.level,51);
+  assert(local.collection.records.some(r=>r.id==="new-capture"));
+  assert.equal(local.collection.records.find(r=>r.id==="protected-egg").slot,2);
+  assert.equal(local.local.data,"native-eggs-and-vouchers");
 });
 test("a fresh device restores cloud saves without touching the Guest",async()=>{
   const c=await fresh();

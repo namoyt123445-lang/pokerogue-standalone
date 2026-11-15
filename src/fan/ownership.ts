@@ -24,6 +24,29 @@ function snapshot(pokemon: Pokemon): PokemonSnapshot {
   raw.ownershipId = pokemon.ownershipId;
   return raw;
 }
+/** Server-hatched blueprints become fully initialized native Pokémon, never copied parent stats. */
+function materializeDaycareRecord(record: OwnedRecord): void {
+  if (!record.data.daycareBlueprint) return;
+  const data = record.data;
+  const pokemon = globalScene.addPlayerPokemon(
+    speciesDataRegistry.getSpecies(data.species), 5, 0, 0, data.gender as number,
+    data.shiny, 0, data.ivs, data.nature,
+  );
+  try {
+    pokemon.ownershipId = record.id;
+    pokemon.id = data.id;
+    pokemon.generateAndPopulateMoveset();
+    pokemon.metLevel = 5;
+    pokemon.metBiome = -1;
+    pokemon.metSpecies = data.species;
+    record.data = snapshot(pokemon);
+  } finally { pokemon.destroy(); }
+}
+export async function materializeDaycareCollection(): Promise<void> {
+  const current = await collectionTransaction();
+  if (!current.records.some(record => record.data.daycareBlueprint)) return;
+  await collectionTransaction(save => { save.records.forEach(materializeDaycareRecord); });
+}
 /** Called before the native capture/release prompt: every successful capture is kept. */
 export async function preserveCapture(pokemon: Pokemon, ball?: number): Promise<void> {
   if (!individualOwnershipEnabled) return;
@@ -70,6 +93,10 @@ export async function preserveParty(party: PlayerPokemon[], initialStarter = fal
 }
 /** Native PokemonData reconstruction retains IVs, moves, ability, nature, ID and level. */
 export function restoreCompanion(record: OwnedRecord): PlayerPokemon {
+  if (record.data.daycareBlueprint) {
+    record = structuredClone(record);
+    materializeDaycareRecord(record);
+  }
   const raw = structuredClone(record.data);
   raw.player = true;
   raw.ownershipId = record.id;

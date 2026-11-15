@@ -86,4 +86,13 @@ $("export").onclick=()=>action(async()=>{
   const link=document.createElement("a");link.href=url;link.download=`pokerogue-${user.username}-backup.json`;link.click();
   setTimeout(()=>URL.revokeObjectURL(url),10000);
 });
+$("server-backup").onclick=()=>action(async()=>{
+  const {backups}=await api("save/backups");
+  if(!backups.length)throw new Error("No earlier cloud save yet. The latest three previous revisions are kept automatically as you play.");
+  const {save}=await api(`save/backups/${backups[0].revision}`);
+  const url=URL.createObjectURL(new Blob([JSON.stringify(save)],{type:"application/json"}));
+  const link=document.createElement("a");link.href=url;link.download=`pokerogue-${user.username}-previous-cloud.json`;link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  status("Previous cloud backup downloaded. Gems and Daycare cooldowns are stored separately and do not roll back.");
+});
 void action(refresh);

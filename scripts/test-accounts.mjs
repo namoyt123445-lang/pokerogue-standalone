@@ -5,12 +5,17 @@ import { readFile } from "node:fs/promises";
 import { handleAccounts, passwordHash, validSnapshot } from "../server/accounts.mjs";
 const sql = new DatabaseSync(":memory:");
 sql.exec(await readFile(new URL("../server/schema.sql",import.meta.url),"utf8"));
-const db = {prepare(query) {
+const db = {async batch(statements) {
+  sql.exec("BEGIN");
+  try {const results=[];for(const statement of statements)results.push(await statement.run());sql.exec("COMMIT");return results;}
+  catch(error){sql.exec("ROLLBACK");throw error;}
+},prepare(query) {
   let values = [];
   const stmt = sql.prepare(query);
   return {
     bind(...args) {values=args;return this;},
     async first() {return stmt.get(...values) ?? null;},
+    async all() {return {results:stmt.all(...values)};},
     async run() {const result=stmt.run(...values);return {meta:{changes:Number(result.changes)}};},
   };
 }};

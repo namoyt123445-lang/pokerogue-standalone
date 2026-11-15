@@ -53,9 +53,14 @@ async function packJson(dir) {
 await packJson("dist");
 await mkdir("dist/json-packs", { recursive: true });
 for (let i = 0; i < packs.length; i++) await writeFile(`dist/json-packs/${i}.json`, JSON.stringify(packs[i]));
+const serverModules = ["standalone-public/breeding-rules.js","server/save-store.mjs","server/daycare.mjs","server/accounts.mjs"];
+const serverCode = (await Promise.all(serverModules.map(async file =>
+  (await readFile(file,"utf8")).replace(/^import .*\r?\n/gm,"").replaceAll("export ","")
+))).join("\n");
 await writeFile("dist/_worker.js", `
 const bucket = ${bucket.toString()};
-${(await readFile("server/accounts.mjs","utf8")).replaceAll("export async function", "async function").replaceAll("export function", "function")}
+const BREEDING_SPECIES = ${await readFile("server/species-breeding.json","utf8")};
+${serverCode}
 export default { async fetch(request, env) {
   const accountResponse = await handleAccounts(request, env);
   if (accountResponse) return accountResponse;
