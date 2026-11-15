@@ -8,6 +8,7 @@ import type { StarterSelectUiHandler } from "#ui/starter-select-ui-handler";
 import { initialStarterCandidates, restoreCompanion } from "../../../src/fan/ownership";
 import type { OwnedRecord, PokemonSnapshot } from "../../../src/fan/ownership-store";
 import { TrainerHub } from "../../../src/fan/daycare";
+import { EggGachaFeatures } from "../../../src/fan/egg-gacha-features";
 import * as daycareClient from "../../../standalone-public/daycare-client.js";
 import { TrainerHubUiHandler } from "../../../src/ui/handlers/trainer-hub-ui-handler";
 import { LoginOrRegisterUiHandler } from "../../../src/ui/handlers/login-or-register-ui-handler";
@@ -21,6 +22,34 @@ describe("Native PokéRogue owned-party integration", () => {
     const game = new GameManager(phaserGame);
     game.override.battleStyle("single").enemySpecies(SpeciesId.MAGIKARP).enemyMoveset(MoveId.SPLASH);
     await game.classicMode.startBattle(SpeciesId.BULBASAUR);
+    // Exercise the real selector controller without headless texture rendering.
+    const selector = Object.create(EggGachaFeatures.prototype);
+    let finishOpening!: (value: boolean) => void;
+    Object.assign(selector, {
+      page: 1, row: 1, opening: false, destroyed: false, pages: [],
+      pointer: { setY: vi.fn() }, message: vi.fn(), exit: vi.fn(),
+      open: vi.fn(() => new Promise<boolean>(resolve => { finishOpening = resolve; })),
+    });
+    selector.processInput(Button.RIGHT);
+    expect(selector.page).toBe(2);
+    selector.processInput(Button.LEFT);
+    expect(selector.page).toBe(1);
+    selector.processInput(Button.DOWN);
+    expect(selector.row).toBe(2);
+    selector.processInput(Button.UP);
+    expect(selector.row).toBe(1);
+    selector.processInput(Button.ACTION);
+    expect(selector.open).toHaveBeenCalledWith(1);
+    expect(selector.processInput(Button.ACTION)).toBe(false);
+    expect(selector.processInput(Button.RIGHT)).toBe(false);
+    expect(selector.open).toHaveBeenCalledTimes(1);
+    finishOpening(true);
+    await Promise.resolve();
+    selector.processInput(Button.CANCEL);
+    expect(selector.exit).toHaveBeenCalledTimes(1);
+    selector.row = 5;
+    selector.processInput(Button.ACTION);
+    expect(selector.exit).toHaveBeenCalledTimes(2);
     const original = game.scene.getPlayerParty()[0];
     const data = JSON.parse(JSON.stringify(new PokemonData(original))) as PokemonSnapshot;
     const record: OwnedRecord = {id:crypto.randomUUID(),data,family:SpeciesId.BULBASAUR,originalTrainer:"test",capturedAt:new Date().toISOString(),location:"pc",box:0,slot:0,favorite:false,locked:false};

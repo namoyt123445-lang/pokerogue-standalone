@@ -1,5 +1,4 @@
 import { pokerogueApi } from "#api/api";
-import { openDaycare } from "../../fan/daycare";
 import { loggedInUser, updateUserInfo } from "#app/account";
 import { audioManager } from "#app/global-audio-manager";
 import { globalScene } from "#app/global-scene";
@@ -197,8 +196,7 @@ export class MenuUiHandler extends OptionSelectUiHandler {
       }
 
       return {
-        label: import.meta.env.MODE === "standalone" && option === MenuOptions.EGG_GACHA
-          ? "Breeding Center" : `${i18next.t(`menuUiHandler:${toCamelCase(MenuOptions[option])}`)}`,
+        label: `${i18next.t(`menuUiHandler:${toCamelCase(MenuOptions[option])}`)}`,
         handler: () => this.optionSelected(option),
         keepOpen: true,
         ...conditionalOpts,
@@ -597,10 +595,6 @@ export class MenuUiHandler extends OptionSelectUiHandler {
         }
         break;
       case MenuOptions.EGG_GACHA:
-        if (import.meta.env.MODE === "standalone") {
-          success = openDaycare();
-          break;
-        }
         ui.revertMode();
         ui.setOverlayMode(UiMode.EGG_GACHA);
         success = true;

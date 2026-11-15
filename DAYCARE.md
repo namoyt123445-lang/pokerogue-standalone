@@ -3,8 +3,12 @@
 ## Native hub rebuild
 
 The latest revision uses a dedicated native UI mode, not a text option menu.
-There is **no Trainer Hub landing page**. Title/menu entries open Daycare,
-Pokémon Boxes or Quests directly; left/right cycles the feature screens. Artwork
+There is **no Trainer Hub landing page**. Open **Egg Gacha** from the title/menu:
+its native background, voucher counters and footer are retained, with Pokémon
+feature icons replacing the machines. Left/right selects a feature; click or
+confirm opens its separate full-screen page. Back returns to Egg Gacha.
+Existing vouchers remain stored and displayed, not spent by feature selection.
+Artwork
 uses actual existing Pokémon portrait, egg, map and Gem item atlases, plus the
 credited non-commercial Day-Care tile by PkmnAlexandrite/Maxewenx. Rejected
 code-drawn icons and generated facility illustrations are not shipped.

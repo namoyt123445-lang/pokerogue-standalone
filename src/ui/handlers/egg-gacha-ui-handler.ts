@@ -17,8 +17,11 @@ import { addWindow } from "#ui/ui-theme";
 import { fixedInt, randSeedShuffle } from "#utils/common";
 import { getEnumValues } from "#utils/enums";
 import i18next from "i18next";
+import { EggGachaFeatures } from "../../fan/egg-gacha-features";
+import { openDaycareScreen } from "../../fan/daycare";
 
 export class EggGachaUiHandler extends MessageUiHandler {
+  private features: EggGachaFeatures | null = null;
   private eggGachaContainer: Phaser.GameObjects.Container;
   private eggGachaMessageBox: Phaser.GameObjects.NineSlice;
   private eggGachaOptionsContainer: Phaser.GameObjects.Container;
@@ -334,6 +337,21 @@ export class EggGachaUiHandler extends MessageUiHandler {
 
   show(args: any[]): boolean {
     super.show(args);
+    if (import.meta.env.MODE === "standalone") {
+      this.gachaContainers.forEach(container => container.setVisible(false));
+      this.eggGachaOptionsContainer.setVisible(false);
+      this.eggGachaSummaryContainer.setVisible(false);
+      this.eggGachaOverlay.setAlpha(0);
+      this.updateVoucherCounts();
+      this.features?.destroy();
+      this.features = new EggGachaFeatures(this.eggGachaContainer,
+        text => this.showText(text, 0),
+        index => openDaycareScreen(index),
+        () => { this.getUi().revertMode(); });
+      this.getUi().bringToTop(this.eggGachaContainer);
+      this.eggGachaContainer.setActive(true).setVisible(true);
+      return true;
+    }
 
     this.getUi().showText(this.defaultText, 0);
 
@@ -847,6 +865,7 @@ export class EggGachaUiHandler extends MessageUiHandler {
    * @returns - Whether an input event occured.
    */
   processInput(button: Button): boolean {
+    if (this.features) return this.features.processInput(button);
     let success: boolean | undefined;
     if (this.transitioning) {
       success = this.processTransitionInput(button);
@@ -929,7 +948,8 @@ export class EggGachaUiHandler extends MessageUiHandler {
 
   clear(): void {
     super.clear();
-    this.setGachaCursor(-1);
+    this.features?.destroy(); this.features = null;
+    if (import.meta.env.MODE !== "standalone") this.setGachaCursor(-1);
     this.eggGachaContainer.setVisible(false);
     if (this.playTimeTimer) {
       this.playTimeTimer.destroy();

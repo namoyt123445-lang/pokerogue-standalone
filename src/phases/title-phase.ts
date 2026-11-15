@@ -27,7 +27,7 @@ import i18next from "i18next";
 import { individualOwnershipEnabled } from "../fan/ownership";
 import { getAccountUser, syncCloud } from "../../standalone-public/cloud.js";
 import { setArenaBackgroundTexture } from "../fan/arena-background";
-import { installDaycareStatus, openDaycare } from "../fan/daycare";
+import { installDaycareStatus } from "../fan/daycare";
 import { materializeDaycareCollection } from "../fan/ownership";
 import { openNativeAccount } from "../fan/account-ui";
 
@@ -205,17 +205,8 @@ export class TitlePhase extends Phase {
       },
     );
     if (individualOwnershipEnabled) options.push({
-      label: "Daycare / Breeding",
-      handler: () => openDaycare(),
-      keepOpen: true,
-    });
-    if (individualOwnershipEnabled) options.push({
-      label: "Pokémon Boxes",
-      handler: () => openDaycare(0),
-      keepOpen: true,
-    }, {
-      label: "Quest Board",
-      handler: () => openDaycare(3),
+      label: i18next.t("menuUiHandler:eggGacha"),
+      handler: () => { ui.setOverlayMode(UiMode.EGG_GACHA); return true; },
       keepOpen: true,
     });
     if (individualOwnershipEnabled) options.push({

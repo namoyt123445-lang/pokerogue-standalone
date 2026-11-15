@@ -19,27 +19,32 @@ export function installDaycareStatus(): void {
   globalScene.ui.add(label);
   globalScene.time.addEvent({ delay: 1000, loop: true, callback: () => {
     const data = getDaycareStatus();
-    label.setVisible(!!getAccountUser() && !!data && globalScene.ui.mode !== UiMode.TRAINER_HUB);
+    label.setVisible(!!getAccountUser() && !!data && globalScene.ui.mode !== UiMode.TRAINER_HUB && globalScene.ui.mode !== UiMode.EGG_GACHA);
     if (!data) return;
     const remaining = Math.max(0, data.state.legendaryNextAt - daycareServerNow());
     label.setText(`Gems: ${data.state.gems} | Legendary: ${remaining ? formatDaycareTime(remaining) : "Ready"}`);
   } });
 }
 export function openDaycare(initialTab = 1): boolean {
+  void openDaycareScreen(initialTab);
+  return true;
+}
+export async function openDaycareScreen(initialTab = 1): Promise<boolean> {
   if (!canManageCollectionAtPhase(globalScene.phaseManager.getCurrentPhase().phaseName)) {
-    globalScene.ui.showText("Save and quit your run, then open Daycare / Breeding from the title screen.", null, () => globalScene.ui.showText(""), 1500);
+    globalScene.ui.showText("Save and quit your run, then open Egg Gacha from the title screen.", null, () => globalScene.ui.showText(""), 1500);
     return false;
   }
   if (!getAccountUser()) return openNativeAccount();
-  void (async () => {
+  try {
     await syncCloud(); await refreshDaycare(); await flushDaycareBattles();
     const { catalog } = await api("daycare/catalog");
     const collection = await collectionTransaction();
     new TrainerHub(catalog, collection.records).open(initialTab);
-  })().catch(error => {
-    console.error(error); openNativeAccount(error.message || "Cloud sync needs attention.");
-  });
-  return true;
+    return true;
+  } catch (error) {
+    console.error(error); openNativeAccount(error instanceof Error ? error.message : "Cloud sync needs attention.");
+    return false;
+  }
 }
 
 const TITLES = ["Pokémon Boxes", "Daycare Nursery", "Breeding Center", "Quest Board", "Gem Rewards"];
