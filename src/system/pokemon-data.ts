@@ -180,6 +180,12 @@ export class PokemonData {
           this,
         );
 
+    // Repair starters written by the old custom selection path, which omitted moves.
+    // Valid movesets, IVs, identities, experience and storage records stay unchanged.
+    if (import.meta.env.MODE === "standalone" && this.player && !ret.moveset.length) {
+      ret.generateAndPopulateMoveset();
+    }
+
     // when loading from saved session, recover summonData.speciesFrom and form index species object
     // used to stay transformed on reload session
     if (this.summonData.speciesForm) {

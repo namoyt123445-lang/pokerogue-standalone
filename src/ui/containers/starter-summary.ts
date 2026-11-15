@@ -14,6 +14,8 @@ import { SpeciesId } from "#enums/species-id";
 import { TextStyle } from "#enums/text-style";
 import { getVariantIcon, getVariantTint, type Variant } from "#sprites/variant";
 import { achvs } from "#system/achv";
+import { PokemonData } from "#system/pokemon-data";
+import type { OwnedRecord } from "../../fan/ownership-store";
 import type { StarterMoveset, StarterPreferences } from "#types/save-data";
 import type { DefinedSpeciesDetails } from "#types/starter-select-types";
 import type { StarterSpeciesId } from "#types/starter-species-id";
@@ -35,6 +37,7 @@ import Phaser from "phaser";
 import type BBCodeText from "phaser4-rex-plugins/plugins/bbcodetext";
 
 export class StarterSummary extends Phaser.GameObjects.Container {
+  private ownedIvs: number[] | undefined;
   private readonly pokemonSprite: Phaser.GameObjects.Sprite;
   private readonly pokemonNumberText: Phaser.GameObjects.Text;
   private readonly shinyOverlay: Phaser.GameObjects.Image;
@@ -513,7 +516,62 @@ export class StarterSummary extends Phaser.GameObjects.Container {
     this.cleanStarterSprite();
   }
 
+  /** Use the original summary widgets, but read this individual instead of dex unlocks. */
+  public setOwnedPokemon(record: OwnedRecord, familyCandy: number, ownedCount: number): void {
+    const data = new PokemonData(record.data);
+    const species = speciesDataRegistry.getSpecies(data.species);
+    const form = speciesDataRegistry.getPokemonSpeciesForm(data.species, data.formIndex);
+    this.speciesId = data.species as StarterSpeciesId;
+    this.ownedIvs = data.ivs;
+    this.pokemonAbilityText.off("pointerover");
+    this.pokemonPassiveText.off("pointerover");
+    this.pokemonUncaughtText.setVisible(false);
+    this.pokemonPermanentInfoContainer.setVisible(true);
+    this.pokemonStatisticsContainer.setVisible(true);
+    this.pokemonPreferencesContainer.setVisible(true);
+    this.setNameAndNumber(species, {});
+    if (data.nickname) {
+      let nickname = data.nickname;
+      try { nickname = decodeURIComponent(escape(atob(nickname))); } catch { /* Older fan saves may use plain nicknames. */ }
+      this.updateName(nickname);
+    }
+    this.setTypeIcons(form.type1, form.type2);
+    this.setShinyIcon(data.shiny, data.variant);
+    this.shinyOverlay.setVisible(data.shiny);
+    this.pokemonSprite.clearTint();
+    this.updateSprite(species, data.gender === Gender.FEMALE, data.formIndex, data.shiny, data.variant);
+    this.pokemonGenderText.setText(species.malePercent === null ? "" : getGenderSymbol(data.gender));
+    this.pokemonGenderText.setColor(getGenderColor(data.gender)).setShadowColor(getGenderColor(data.gender, true));
+    const ability = allAbilities[form.getAbility(data.abilityIndex)];
+    this.pokemonAbilityText.setText(ability?.name ?? "").setColor(getTextColor(TextStyle.SUMMARY_ALT)).setShadowColor(getTextColor(TextStyle.SUMMARY_ALT, true));
+    if (ability) this.pokemonAbilityText.on("pointerover", () => globalScene.ui.showTooltip(ability.name, ability.description, true));
+    const passive = allAbilities[species.getPassiveAbility(data.formIndex)];
+    this.pokemonPassiveLabelText.setVisible(!!passive);
+    this.pokemonPassiveText.setVisible(!!passive).setText(passive?.name ?? "").setAlpha(data.passive ? 1 : 0.5);
+    this.pokemonPassiveDisabledIcon.setVisible(false);
+    this.pokemonPassiveLockedIcon.setVisible(!!passive && !data.passive);
+    this.pokemonNatureText.setText(getNatureName(data.nature, true, true, false));
+    this.pokemonFormText.setText(`Lv. ${data.level} · ${record.location === "party" ? "Party" : `Box ${record.box + 1}`}`);
+    this.pokemonGrowthRateText.setText(toTitleCase(GrowthRate[species.growthRate])).setColor(getGrowthRateColor(species.growthRate)).setShadowColor(getGrowthRateColor(species.growthRate, true));
+    const luck = data.shiny ? data.variant + 1 : 0;
+    this.pokemonLuckText.setVisible(!!luck).setText(`${luck}`);
+    this.pokemonLuckLabelText.setVisible(!!luck);
+    this.pokemonCaughtHatchedContainer.setVisible(true);
+    this.pokemonCaughtCountText.setText(`${ownedCount}`);
+    this.pokemonHatchedIcon.setVisible(false);
+    this.pokemonHatchedCountText.setVisible(false);
+    this.updateCandyCount(familyCandy);
+    this.pokemonCandyDarknessOverlay.setCrop();
+    this.pokemonCandyContainer.off("pointerover").off("pointerout");
+    const moveIds = data.moveset.map(move => move.moveId) as StarterMoveset;
+    this.updateMoveset(moveIds, moveIds.length);
+    this.hideEggMoves();
+    this.teraIcon.setVisible(false);
+    if (this.statsMode) this.showStats(); else this.statsContainer.setVisible(false);
+  }
+
   public setStarter(starterId: StarterSpeciesId, starterPreferences: StarterPreferences): void {
+    this.ownedIvs = undefined;
     // Checking here to ensure achievements are loaded, and updated if unlocked while playing
     this.allowTera = Object.hasOwn(globalScene.gameData.achvUnlocks, achvs.TERASTALLIZE.id);
 
@@ -731,6 +789,10 @@ export class StarterSummary extends Phaser.GameObjects.Container {
   }
 
   protected showStats(): void {
+    if (this.ownedIvs) {
+      this.statsContainer.setVisible(true).updateIvs(this.ownedIvs);
+      return;
+    }
     const { dexEntry } = getStarterData(this.speciesId);
     this.statsContainer //
       .setVisible(true)
@@ -884,6 +946,7 @@ export class StarterSummary extends Phaser.GameObjects.Container {
   }
 
   public clear(): void {
+    this.ownedIvs = undefined;
     globalScene.ui.hideTooltip();
     this.activeTooltip = undefined;
   }

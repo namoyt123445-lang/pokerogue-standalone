@@ -24,7 +24,6 @@ import type { OptionSelectItem, OptionSelectModeConfig } from "#types/ui-types";
 import { SaveSlotUiMode } from "#ui/save-slot-select-ui-handler";
 import { isLocalServerConnected } from "#utils/common";
 import i18next from "i18next";
-import { prepareNewGameTeam, clearPreparedTeam } from "../fan/collection-ui";
 import { individualOwnershipEnabled } from "../fan/ownership";
 
 const NO_SAVE_SLOT = -1;
@@ -37,7 +36,6 @@ export class TitlePhase extends Phase {
 
   async start(): Promise<void> {
     super.start();
-    clearPreparedTeam();
 
     globalScene.ui.clearText();
     globalScene.ui.fadeIn(250);
@@ -163,17 +161,7 @@ export class TitlePhase extends Phase {
               ui.setOverlayMode(UiMode.OPTION_SELECT, config);
             });
           };
-          if (individualOwnershipEnabled) {
-            void prepareNewGameTeam()
-              .then(ready => {
-                if (ready) showModes();
-                else void this.showOptions(lastSessionSlot);
-              })
-              .catch(error => {
-                window.alert(`Could not open party / PC boxes: ${(error as Error).message}`);
-                void this.showOptions(lastSessionSlot);
-              });
-          } else showModes();
+          showModes();
           return true;
         },
       },

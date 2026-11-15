@@ -11,10 +11,9 @@ import { overrideHeldItems, overrideModifiers } from "#modifiers/modifier";
 import type { Starter } from "#types/save-data";
 import { SaveSlotUiMode } from "#ui/save-slot-select-ui-handler";
 import { applyChallenges } from "#utils/challenge-utils";
-import { chooseOwnedTeam, takePreparedTeam, type TeamSelection } from "../fan/collection-ui";
-import { individualOwnershipEnabled, preserveParty, restoreCompanion } from "../fan/ownership";
+import { individualOwnershipEnabled, initialStarterCandidates, preserveParty, restoreCompanion } from "../fan/ownership";
 import { collectionTransaction } from "../fan/ownership-store";
-import { SpeciesId } from "#enums/species-id";
+import { validateNativeTeam, type NativeOwnedSelection } from "../fan/native-selection";
 
 export class SelectStarterPhase extends Phase {
   public readonly phaseName = "SelectStarterPhase";
@@ -24,36 +23,7 @@ export class SelectStarterPhase extends Phase {
     audioManager.playBgm("menu");
 
     if (individualOwnershipEnabled) {
-      // Existing session saves are imported only when they are actually resumed/saved.
-      // New runs choose real owned individuals, never dex-unlocked species.
-      const prepared = takePreparedTeam();
-      (prepared ? Promise.resolve(prepared) : chooseOwnedTeam())
-        .then(selection => {
-          if (!selection) {
-            globalScene.phaseManager.toTitleScreen();
-            this.end();
-            return;
-          }
-          globalScene.ui.clearText();
-          globalScene.ui.setMode(UiMode.SAVE_SLOT, SaveSlotUiMode.SAVE, (slotId: number) => {
-            if (slotId === -1) {
-              globalScene.phaseManager.toTitleScreen();
-              this.end();
-              return;
-            }
-            globalScene.sessionSlotId = slotId;
-            this.initOwnedBattle(selection).catch(error => {
-              window.alert(`Your collection could not be saved. The run was not started: ${(error as Error).message}`);
-              globalScene.phaseManager.toTitleScreen();
-              this.end();
-            });
-          });
-        })
-        .catch(error => {
-          window.alert(`Collection unavailable: ${(error as Error).message}. Existing saves have not been erased.`);
-          globalScene.phaseManager.toTitleScreen();
-          this.end();
-        });
+      void this.showNativeOwnedSelection();
       return;
     }
 
@@ -72,27 +42,45 @@ export class SelectStarterPhase extends Phase {
     });
   }
 
-  private async initOwnedBattle(selection: TeamSelection): Promise<void> {
-    const party = globalScene.getPlayerParty();
-    if ("starter" in selection) {
+  private async showNativeOwnedSelection(): Promise<void> {
+    try {
       const save = await collectionTransaction();
-      if (save.starterChosen || save.records.length)
-        throw new Error("A starter has already been chosen. Return and select an owned companion.");
-      const pokemon = globalScene.addPlayerPokemon(
-        speciesDataRegistry.getSpecies(selection.starter as SpeciesId),
-        globalScene.gameMode.getStartingLevel(),
+      const firstStarter = !save.starterChosen && save.records.length === 0;
+      const context: NativeOwnedSelection = { records: firstStarter ? initialStarterCandidates() : save.records, firstStarter, candy: save.candy };
+      globalScene.ui.setMode(
+        UiMode.STARTER_SELECT,
+        (starters: Starter[]) => {
+          const ids = starters.map(starter => starter.ownershipId ?? "");
+          validateNativeTeam(context.records, ids, firstStarter);
+          globalScene.ui.clearText();
+          globalScene.ui.setMode(UiMode.SAVE_SLOT, SaveSlotUiMode.SAVE, (slotId: number) => {
+            if (slotId === -1) { globalScene.phaseManager.toTitleScreen(); this.end(); return; }
+            globalScene.sessionSlotId = slotId;
+            void this.initOwnedBattle(context, ids).catch(error => this.ownershipError(error));
+          });
+        },
+        context,
       );
-      pokemon.setVisible(false);
-      party.push(pokemon);
-    } else {
-      const save = await collectionTransaction();
-      const records = selection.records.map(record => save.records.find(current => current.id === record.id));
-      if (!records.length || records.length > 6 || records.some(record => !record))
-        throw new Error("Your selected team changed. Choose again.");
-      party.push(...records.map(record => restoreCompanion(record!)));
-    }
-    // Commit individual identities before entering the native battle loop.
-    await preserveParty(party, true, "starter" in selection);
+    } catch (error) { this.ownershipError(error); }
+  }
+
+  private ownershipError(error: unknown): void {
+    console.error("Permanent team could not be loaded", error);
+    globalScene.ui.setMode(UiMode.MESSAGE);
+    globalScene.ui.showText(`Could not load your collection. Your saves have not been erased.\n${(error as Error).message}`, null, () => {
+      globalScene.phaseManager.toTitleScreen(); this.end();
+    }, 0, true);
+  }
+
+  private async initOwnedBattle(context: NativeOwnedSelection, ids: string[]): Promise<void> {
+    const save = await collectionTransaction();
+    const records = validateNativeTeam(context.firstStarter ? context.records : save.records, ids, context.firstStarter);
+    const party = globalScene.getPlayerParty();
+    if (party.length) throw new Error("A previous party is still active. Return to the title before starting a new run.");
+    party.push(...records.map(restoreCompanion));
+    await preserveParty(party, true, context.firstStarter);
+    overrideModifiers();
+    overrideHeldItems(party[0]);
     await Promise.all(party.map(pokemon => pokemon.loadAssets()));
     this.beginNativeAdventure();
   }

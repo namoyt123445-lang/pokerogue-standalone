@@ -8,8 +8,9 @@ let html = await readFile(indexPath, "utf8");
 html = html.replaceAll("https://pokerogue.net/logo512.png", "./logo512.png")
   .replaceAll("https://pokerogue.net", "https://pokerogue-standalone.pages.dev")
   .replaceAll('content="PokéRogue"', 'content="PokéRogue Standalone — Unofficial Fan Build"')
-  .replace("<title>PokéRogue</title>", "<title>PokéRogue Standalone — Unofficial Fan Build</title>")
-  .replace('<div id="app"></div>', '<div id="app"></div><a href="/about.html" style="position:fixed;bottom:4px;left:8px;z-index:1000;color:#fff;font:11px sans-serif">Unofficial fan build · Local saves · Source & credits</a>');
+  .replace("<title>PokéRogue</title>", "<title>PokéRogue Standalone — Unofficial Fan Build</title>");
+// Leave the game's native canvas and touch-control DOM unchanged.
+// Source is linked from the native Community/GitHub menu and /about.html.
 await writeFile(indexPath, html);
 await writeFile("dist/manifest.webmanifest", JSON.stringify({
   name: "PokéRogue Standalone — Unofficial Fan Build", short_name: "Rogue Fan",

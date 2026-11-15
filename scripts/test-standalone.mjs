@@ -17,7 +17,12 @@ const missing = await worker.fetch(new Request("https://example.test/not-a-real-
 assert.equal(missing.status, 404);
 const html = await readFile("dist/index.html", "utf8");
 assert(!html.includes("https://pokerogue.net"));
-assert(html.includes("Unofficial fan build"));
+assert(html.includes("Unofficial Fan Build"));
+assert(!html.includes('id="fan-collection"'));
+assert(!html.includes('id="fan-launcher"'));
+assert(!html.includes('position:fixed;bottom:4px'));
+const about = await readFile("dist/about.html", "utf8");
+assert(about.includes("https://github.com/namoyt123445-lang/pokerogue-standalone"));
 const headers = await readFile("dist/_headers", "utf8");
 assert(headers.includes("connect-src 'self'"));
 console.log("Standalone checks passed: JSON routing, manifests, missing files, metadata, and same-origin policy.");

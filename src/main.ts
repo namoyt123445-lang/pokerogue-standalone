@@ -10,7 +10,6 @@ import BBCodeTextPlugin from "phaser4-rex-plugins/plugins/bbcodetext-plugin";
 import InputTextPlugin from "phaser4-rex-plugins/plugins/inputtext-plugin";
 import TransitionImagePackPlugin from "phaser4-rex-plugins/templates/transitionimagepack/transitionimagepack-plugin";
 import UIPlugin from "phaser4-rex-plugins/templates/ui/ui-plugin";
-import { installCollectionLauncher } from "./fan/collection-ui";
 
 if (isBeta || isDev) {
   document.title += " (Beta)";
@@ -81,7 +80,6 @@ async function startGame(): Promise<void> {
     version,
   });
   game.sound.pauseOnBlur = isMobile();
-  installCollectionLauncher();
 }
 
 try {

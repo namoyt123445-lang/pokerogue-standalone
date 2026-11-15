@@ -183,6 +183,8 @@ export interface RunEntry {
 
 // TODO: find better file to place this in, it's not save data related
 export interface Starter {
+  /** Exact individual selected from the permanent collection, not a species unlock. */
+  ownershipId?: string | undefined;
   speciesId: SpeciesId;
   shiny: boolean;
   variant: Variant;

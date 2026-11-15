@@ -1,0 +1,62 @@
+import { SpeciesId } from "#enums/species-id";
+import { MoveId } from "#enums/move-id";
+import { UiMode } from "#enums/ui-mode";
+import { Button } from "#enums/buttons";
+import { PokemonData } from "#system/pokemon-data";
+import { GameManager } from "#test/framework/game-manager";
+import type { StarterSelectUiHandler } from "#ui/starter-select-ui-handler";
+import { initialStarterCandidates, restoreCompanion } from "../../../src/fan/ownership";
+import type { OwnedRecord, PokemonSnapshot } from "../../../src/fan/ownership-store";
+import Phaser from "phaser";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+describe("Native PokéRogue owned-party integration", () => {
+  let phaserGame: Phaser.Game;
+  beforeAll(() => { phaserGame = new Phaser.Game({type:Phaser.HEADLESS}); });
+  it("uses the native grid for duplicates, enforces one starter, and repairs empty moves without replacing identity", async () => {
+    const game = new GameManager(phaserGame);
+    game.override.battleStyle("single").enemySpecies(SpeciesId.MAGIKARP).enemyMoveset(MoveId.SPLASH);
+    await game.classicMode.startBattle(SpeciesId.BULBASAUR);
+    const original = game.scene.getPlayerParty()[0];
+    const data = JSON.parse(JSON.stringify(new PokemonData(original))) as PokemonSnapshot;
+    const record: OwnedRecord = {id:crypto.randomUUID(),data,family:SpeciesId.BULBASAUR,originalTrainer:"test",capturedAt:new Date().toISOString(),location:"pc",box:0,slot:0,favorite:false,locked:false};
+    const duplicate: OwnedRecord = structuredClone(record); duplicate.id=crypto.randomUUID();duplicate.slot=1;
+    const handler = game.scene.ui.handlers[UiMode.STARTER_SELECT] as StarterSelectUiHandler;
+    const onSelected = vi.fn();
+    await game.scene.ui.setMode(UiMode.STARTER_SELECT,onSelected,{records:[record,duplicate],firstStarter:false,candy:{}});
+    expect(game.scene.ui.mode).toBe(UiMode.STARTER_SELECT);
+    expect(handler["nativeOwnedView"].map(r=>r.id)).toEqual([record.id,duplicate.id]);
+    expect(handler["starterSelectContainer"].visible).toBe(true);
+    handler["nativeOwnedParty"].push(record,duplicate);
+    handler["syncNativeOwnedParty"]();
+    expect(handler["partyStarters"].map(s=>s.ownershipId)).toEqual([record.id,duplicate.id]);
+    expect(handler["isPartyValid"]()).toBe(true);
+    expect(document.querySelector("#fan-collection")).toBeNull();
+    game.scene.money = 0;
+    expect(handler.processInput(Button.SUBMIT)).toBe(true);
+    await vi.waitUntil(()=>game.scene.ui.mode===UiMode.CONFIRM,{timeout:3000});
+    game.scene.ui.getHandler().processInput(Button.ACTION);
+    await vi.waitUntil(()=>onSelected.mock.calls.length===1,{timeout:3000});
+    expect(onSelected.mock.calls[0][0].map((s:{ownershipId:string})=>s.ownershipId)).toEqual([record.id,duplicate.id]);
+    expect(game.scene.money).toBe(game.scene.gameMode.getStartingMoney());
+    handler.clear();
+
+    const candidates = initialStarterCandidates();
+    expect(candidates.map(c=>c.data.species)).toEqual([SpeciesId.BULBASAUR,SpeciesId.CHARMANDER,SpeciesId.SQUIRTLE]);
+    for(const candidate of candidates) expect(new PokemonData(candidate.data).moveset.length).toBeGreaterThan(0);
+    handler.show([vi.fn(),{records:candidates,firstStarter:true,candy:{}}]);
+    handler["nativeOwnedParty"].push(...candidates.slice(0,2));
+    expect(handler["isPartyValid"]()).toBe(false);
+    handler["nativeOwnedParty"].pop();
+    expect(handler["isPartyValid"]()).toBe(true);
+    handler.clear();
+
+    const broken = structuredClone(record); broken.data.moveset=[];
+    const repaired = restoreCompanion(broken);
+    expect(repaired.ownershipId).toBe(record.id);
+    expect(repaired.ivs).toEqual(data.ivs);
+    expect(repaired.level).toBe(data.level);
+    expect(repaired.moveset.length).toBeGreaterThan(0);
+    repaired.destroy();
+  });
+});

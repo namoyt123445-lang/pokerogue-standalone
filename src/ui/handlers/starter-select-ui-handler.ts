@@ -91,6 +91,10 @@ import { getPokerusStarters, getStarterColors } from "#utils/pokemon-utils";
 import i18next from "i18next";
 import type { GameObjects } from "phaser";
 import Phaser from "phaser";
+import { Gender } from "#data/gender";
+import { PokemonData } from "#system/pokemon-data";
+import { collectionTransaction, type OwnedRecord } from "../../fan/ownership-store";
+import { validateNativeTeam, type NativeOwnedSelection } from "../../fan/native-selection";
 
 const COLUMNS = 9;
 const ROWS = 9;
@@ -151,6 +155,12 @@ function findClosestStarterIndex(y: number, teamSize = 6): number {
 }
 
 export class StarterSelectUiHandler extends MessageUiHandler {
+  private nativeOwnedContext: NativeOwnedSelection | undefined;
+  private nativeOwnedView: OwnedRecord[] = [];
+  private nativeOwnedParty: OwnedRecord[] = [];
+  private nativeOwnedLocation: "all" | "party" | "pc" | "home" = "all";
+  private nativeOwnedBox = -1;
+  private nativeBoxLabel: Phaser.GameObjects.Text;
   private starterSelectContainer: Phaser.GameObjects.Container;
 
   private starterContainers: StarterContainer[] = [];
@@ -221,6 +231,179 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   protected blockInput = false;
   private allowTera: boolean;
   private oldCursor = -1;
+
+  /** Adapt the original UI to owned individuals. No DOM, CSS, scene pause, or keyboard interception. */
+  private showNativeOwnedSelection(args: any[], context: NativeOwnedSelection): boolean {
+    super.show(args);
+    this.nativeOwnedContext = context;
+    this.nativeOwnedParty = [];
+    this.nativeOwnedLocation = "all";
+    this.nativeOwnedBox = -1;
+    this.starterSelectCallback = args[0] as StarterSelectCallback;
+    this.starterPreferences = {};
+    this.originalStarterPreferences = {};
+    this.partyStarterIds.length = 0;
+    this.partyStarters.length = 0;
+    this.pokerusSpeciesIds = [];
+    this.blockInput = false;
+    this.filterMode = false;
+    this.showIvsMode = false;
+    this.cursor = 0;
+    this.oldCursor = -1;
+    this.scrollCursor = 0;
+    this.filterBar.setValsToDefault();
+    this.filterBar.setVisible(true);
+    this.moveInfoOverlay.clear();
+    this.starterSummary.applyChallengeVisibility();
+    this.starterSummary.hideIvs(false);
+    this.nativeBoxLabel.setText(context.firstStarter ? i18next.t("starterSelectUiHandler:randomize") : "BOX");
+    this.starterSelectContainer.setVisible(true);
+    this.randomCursorObj.setVisible(false);
+    this.startCursorObj.setVisible(false);
+    this.partyCursorObj.setVisible(false);
+    this.syncNativeOwnedParty();
+    this.updateNativeOwnedView();
+    this.setFilterMode(false);
+    this.setCursor(0);
+    return true;
+  }
+
+  private updateNativeOwnedView(): void {
+    const context = this.nativeOwnedContext!;
+    const generations = this.filterBar.getVals(DropDownColumn.GEN);
+    const types = this.filterBar.getVals(DropDownColumn.TYPES);
+    const caught = this.filterBar.getVals(DropDownColumn.CAUGHT);
+    this.nativeOwnedView = context.records.filter(record => {
+      const species = speciesDataRegistry.getSpecies(record.data.species);
+      const form = speciesDataRegistry.getPokemonSpeciesForm(record.data.species, record.data.formIndex);
+      if (this.nativeOwnedLocation !== "all" && record.location !== this.nativeOwnedLocation) return false;
+      if (this.nativeOwnedBox >= 0 && record.box !== this.nativeOwnedBox) return false;
+      if (!generations.includes(species.generation)) return false;
+      if (!types.some(type => form.isOfType((type as number)-1))) return false;
+      if (caught.length && !caught.includes("ALL") && !caught.some(value =>
+        value === "NORMAL" && !record.data.shiny || value === "SHINY" && record.data.shiny && !record.data.variant
+        || value === "SHINY1" && record.data.shiny && !record.data.variant
+        || value === "SHINY2" && record.data.shiny && record.data.variant === 1
+        || value === "SHINY3" && record.data.shiny && record.data.variant === 2)) return false;
+      return true;
+    });
+    const sort = this.filterBar.getVals(DropDownColumn.SORT)[0];
+    this.nativeOwnedView.sort((a,b) => {
+      const sign = -sort.dir;
+      if (sort.val === SortCriteria.IV) return sign*(a.data.ivs.reduce((n,v)=>n+v,0)-b.data.ivs.reduce((n,v)=>n+v,0));
+      if (sort.val === SortCriteria.NAME) return sign*speciesDataRegistry.getSpecies(a.data.species).name.localeCompare(speciesDataRegistry.getSpecies(b.data.species).name);
+      if (sort.val === SortCriteria.CANDY) return sign*((context.candy[a.family]??0)-(context.candy[b.family]??0));
+      if (sort.val === SortCriteria.CAUGHT || sort.val === SortCriteria.HATCHED) return sign*a.capturedAt.localeCompare(b.capturedAt);
+      return sign*(a.data.species-b.data.species);
+    });
+    this.filteredStarterIds = this.nativeOwnedView.map(record => record.data.species as StarterSpeciesId);
+    this.scrollCursor = 0;
+    this.starterSelectScrollBar.setTotalRows(Math.max(1,Math.ceil(this.nativeOwnedView.length/COLUMNS)));
+    this.filterBar.updateFilterLabels();
+    this.renderNativeOwnedGrid();
+    this.setCursor(0);
+  }
+
+  private renderNativeOwnedGrid(): void {
+    this.starterSelectScrollBar.setScrollCursor(this.scrollCursor);
+    this.starterCursorObjs.forEach(cursor=>cursor.setVisible(false));
+    this.pokerusCursorObjs.forEach(cursor=>cursor.setVisible(false));
+    this.starterContainers.forEach((container,index) => {
+      const record = this.nativeOwnedView[this.scrollCursor*COLUMNS+index];
+      container.setVisible(!!record);
+      if (!record) return;
+      const data = new PokemonData(record.data);
+      // Reuse the original grid sprites rather than destroying/recreating them.
+      container.species = speciesDataRegistry.getSpecies(data.species);
+      container.icon.setTexture(container.species.getIconAtlasKey(data.formIndex,data.shiny,data.variant))
+        .setFrame(container.species.getIconId(data.gender===Gender.FEMALE,data.formIndex,data.shiny,data.variant))
+        .clearTint().setAlpha(1);
+      container.checkIconId(data.gender===Gender.FEMALE,data.formIndex,data.shiny,data.variant);
+      container.label.setText(`${data.level}`).setVisible(true);
+      container.shinyIcons.forEach((icon,i)=>icon.setVisible(data.shiny&&i===data.variant));
+      container.starterPassiveBgs.setVisible(data.passive);
+      container.hiddenAbilityIcon.setVisible(false);
+      container.favoriteIcon.setVisible(record.favorite);
+      container.classicWinIcon.setVisible(false);
+      container.candyUpgradeIcon.setVisible(false);
+      container.candyUpgradeOverlayIcon.setVisible(false);
+      const selected = this.nativeOwnedParty.findIndex(member=>member.id===record.id);
+      if (selected>=0) this.starterCursorObjs[selected].setPosition(container.x-1,container.y+1).setVisible(true);
+    });
+    this.tryUpdateValue();
+  }
+
+  private syncNativeOwnedParty(): void {
+    this.partyStarters.length = 0;
+    this.partyStarterIds.length = 0;
+    for (let i=0;i<PLAYER_PARTY_MAX_SIZE;i++) {
+      const record = this.nativeOwnedParty[i];
+      if (!record) { this.partyIcons[i].setTexture("pokemon_icons_0").setFrame("unknown"); continue; }
+      const data = new PokemonData(record.data), species = speciesDataRegistry.getSpecies(data.species);
+      this.partyIcons[i].setTexture(species.getIconAtlasKey(data.formIndex,data.shiny,data.variant)).setFrame(species.getIconId(data.gender===Gender.FEMALE,data.formIndex,data.shiny,data.variant));
+      this.partyStarterIds.push(data.species as StarterSpeciesId);
+      this.partyStarters.push({
+        ownershipId:record.id,speciesId:data.species,shiny:data.shiny,variant:data.variant,formIndex:data.formIndex,
+        female:data.gender===Gender.FEMALE,abilityIndex:data.abilityIndex,passive:data.passive,nature:data.nature,
+        moveset:data.moveset.map(move=>move.moveId) as StarterMoveset,pokerus:data.pokerus,nickname:data.nickname,
+        teraType:data.teraType,ivs:[...data.ivs],
+      });
+    }
+    this.tryUpdateValue();
+    this.updateInstructions();
+  }
+
+  private showNativeOwnedSummary(record: OwnedRecord | undefined): void {
+    if (!record) { this.starterSummary.setNoStarter(); return; }
+    const context = this.nativeOwnedContext!;
+    this.starterSummary.setOwnedPokemon(record,context.candy[record.family]??0,context.records.filter(r=>r.data.species===record.data.species).length);
+  }
+
+  private openNativeOwnedBoxes(page=0): void {
+    const context = this.nativeOwnedContext!;
+    if (context.firstStarter) {
+      const candidate = context.records[Math.floor(Math.random()*context.records.length)];
+      this.nativeOwnedParty = [candidate];
+      this.syncNativeOwnedParty();
+      this.renderNativeOwnedGrid();
+      return;
+    }
+    const locations = new Map<string,{location:"party"|"pc"|"home";box:number}>();
+    for (const record of context.records) locations.set(`${record.location}:${record.box}`,{location:record.location,box:record.box});
+    const entries = [...locations.values()];
+    const options:OptionSelectItem[] = [{
+      label:"All owned Pokémon",handler:()=>{this.nativeOwnedLocation="all";this.nativeOwnedBox=-1;this.updateNativeOwnedView();globalScene.ui.setMode(UiMode.STARTER_SELECT);return true;},
+    }];
+    for (const entry of entries.slice(page*5,page*5+5)) options.push({
+      label:entry.location==="party"?"Previous party":`${entry.location==="home"?"HOME":"PC"} Box ${entry.box+1}`,
+      handler:()=>{this.nativeOwnedLocation=entry.location;this.nativeOwnedBox=entry.box;this.updateNativeOwnedView();globalScene.ui.setMode(UiMode.STARTER_SELECT);return true;},
+    });
+    if (page>0) options.push({label:"Previous",handler:()=>{this.openNativeOwnedBoxes(page-1);return true;}});
+    if (entries.length>(page+1)*5) options.push({label:"Next",handler:()=>{this.openNativeOwnedBoxes(page+1);return true;}});
+    options.push({label:i18next.t("menu:cancel"),handler:()=>{globalScene.ui.setMode(UiMode.STARTER_SELECT);return true;}});
+    globalScene.ui.setModeWithoutClear(UiMode.OPTION_SELECT,{options});
+  }
+
+  private openNativeOwnedPokemonMenu(): void {
+    const context = this.nativeOwnedContext!;
+    const record = this.partyCursorObj.visible ? this.nativeOwnedParty[this.partyIconsCursorIndex] : this.nativeOwnedView[this.scrollCursor*COLUMNS+this.cursor];
+    if (!record) { globalScene.ui.playError(); return; }
+    const selected = this.nativeOwnedParty.findIndex(member=>member.id===record.id);
+    const back = ():true=>{globalScene.ui.setMode(UiMode.STARTER_SELECT);return true;};
+    const options:OptionSelectItem[] = [];
+    if (selected>=0) options.push({label:i18next.t("starterSelectUiHandler:removeFromParty"),handler:()=>{this.popPartyStarter(selected);return back();}});
+    else if (this.nativeOwnedParty.length<(context.firstStarter?1:6)) options.push({
+      label:i18next.t("starterSelectUiHandler:addToParty"),
+      handler:()=>{this.nativeOwnedParty.push(record);this.syncNativeOwnedParty();this.renderNativeOwnedGrid();return back();},
+    });
+    options.push({label:i18next.t("starterSelectUiHandler:toggleIVs"),handler:()=>{this.toggleShowIvsMode();return back();}});
+    if (!context.firstStarter) options.push({
+      label:record.favorite?"Unfavorite":"Favorite",
+      handler:()=>{this.blockInput=true;void collectionTransaction(save=>{const stored=save.records.find(r=>r.id===record.id);if(stored)stored.favorite=!stored.favorite;}).then(save=>{record.favorite=save.records.find(r=>r.id===record.id)?.favorite??false;this.renderNativeOwnedGrid();back();}).catch(error=>{console.error(error);globalScene.ui.playError();back();}).finally(()=>{this.blockInput=false;});return true;},
+    });
+    options.push({label:i18next.t("menu:cancel"),handler:back});
+    globalScene.ui.setModeWithoutClear(UiMode.OPTION_SELECT,{options});
+  }
 
   public override setup(): void {
     const ui = this.getUi();
@@ -531,6 +714,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
       i18next.t("starterSelectUiHandler:randomize"),
       TextStyle.TOOLTIP_CONTENT,
     ).setOrigin(0.5, 0);
+    this.nativeBoxLabel = randomSelectLabel;
 
     this.randomCursorObj = globalScene.add
       .nineslice(teamWindowX + 4, 21, "select_cursor", undefined, 26, 15, 6, 6, 6, 6)
@@ -578,6 +762,13 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   public override show(args: any[]): boolean {
+    if (args[0] instanceof Function && args[1] && Array.isArray(args[1].records)) {
+      return this.showNativeOwnedSelection(args, args[1] as NativeOwnedSelection);
+    }
+    if (this.nativeOwnedContext && !args.length) {
+      this.starterSelectContainer.setVisible(true);
+      return true;
+    }
     this.moveInfoOverlay.clear(); // clear this when removing a menu; the cancel button doesn't seem to trigger this automatically on controllers
     this.pokerusSpeciesIds = getPokerusStarters();
 
@@ -805,6 +996,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
    * @param startPaused Should this animation be paused after it is added?
    */
   protected setUpgradeAnimation(starter: StarterContainer): void {
+    if (this.nativeOwnedContext) return;
     const icon = starter.icon;
     const species = starter.species;
 
@@ -830,6 +1022,11 @@ export class StarterSelectUiHandler extends MessageUiHandler {
    * @param starterContainer - The container to update
    */
   protected setUpgradeIcon(starterContainer: StarterContainer): void {
+    if (this.nativeOwnedContext) {
+      starterContainer.candyUpgradeIcon.setVisible(false);
+      starterContainer.candyUpgradeOverlayIcon.setVisible(false);
+      return;
+    }
     const species = starterContainer.species;
     const slotVisible = !!species?.speciesId;
 
@@ -873,6 +1070,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
   /** Update the candy upgrade notification style based on the settings */
   private onCandyUpgradeDisplayChanged(): void {
+    if (this.nativeOwnedContext) return;
     // Loop through all visible candy icons when set to 'Icon' mode
     if (settings.display.candyUpgradeDisplayMode === CandyUpgradeDisplayMode.ICON) {
       this.filteredStarterIds.forEach((_, i) => {
@@ -1065,6 +1263,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
   /** Processes inputs while the cursor is on the random choice button. */
   private processRandomCursorInput(button: Button): [success: boolean, error: boolean] {
+    if (this.nativeOwnedContext && button === Button.ACTION) {
+      this.openNativeOwnedBoxes();
+      return [true, false];
+    }
     let success = false;
     let error = false;
 
@@ -1574,6 +1776,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
   /** Opens the menu and populates its options. */
   private openPokemonMenu(): void {
+    if (this.nativeOwnedContext) {
+      this.openNativeOwnedPokemonMenu();
+      return;
+    }
     const ui = this.getUi();
     const options: OptionSelectItem[] = [];
 
@@ -2116,6 +2322,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
     }
 
     const ui = this.getUi();
+    if (this.nativeOwnedContext && [Button.CYCLE_SHINY, Button.CYCLE_FORM, Button.CYCLE_GENDER, Button.CYCLE_ABILITY, Button.CYCLE_NATURE, Button.CYCLE_TERA].includes(button)) {
+      ui.playError();
+      return true; // An individual cannot be rerolled by species-unlock shortcuts.
+    }
 
     let success = false;
     let error = false;
@@ -2156,6 +2366,11 @@ export class StarterSelectUiHandler extends MessageUiHandler {
     } else if (this.randomCursorObj.visible) {
       [success, error] = this.processRandomCursorInput(button);
     } else if (button === Button.ACTION) {
+      if (this.nativeOwnedContext) {
+        this.openNativeOwnedPokemonMenu();
+        ui.playSelect();
+        return true;
+      }
       const { dexEntry } = getStarterData(this.lastStarterId);
       if (!dexEntry?.caughtAttr) {
         error = true;
@@ -2330,11 +2545,19 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   protected updateInstructions(): void {
+    if (this.nativeOwnedContext) {
+      this.instructionsContainer.updateInstructions({ ability:false, form:false, gender:false, nature:false, shiny:false, tera:false }, this.nativeOwnedView.length > 0, this.filterMode);
+      return;
+    }
     const { dexEntry } = getStarterData(this.lastStarterId);
     this.instructionsContainer.updateInstructions(this.canCycle, !!dexEntry.caughtAttr, this.filterMode);
   }
 
   protected updateStarters(): void {
+    if (this.nativeOwnedContext) {
+      this.updateNativeOwnedView();
+      return;
+    }
     this.scrollCursor = 0;
 
     this.filterBar.updateFilterLabels();
@@ -2545,6 +2768,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   protected updateScroll(): void {
+    if (this.nativeOwnedContext) {
+      this.renderNativeOwnedGrid();
+      return;
+    }
     const onScreenFirstIndex = this.scrollCursor * COLUMNS;
 
     this.starterSelectScrollBar.setScrollCursor(this.scrollCursor);
@@ -2726,6 +2953,12 @@ export class StarterSelectUiHandler extends MessageUiHandler {
    * @param starterId - the id of the new starter
    */
   private setStarter(starterId: StarterSpeciesId, iconAnimation = true): void {
+    if (this.nativeOwnedContext) {
+      this.lastStarterId = starterId;
+      this.showNativeOwnedSummary(this.nativeOwnedView[this.scrollCursor * COLUMNS + this.cursor]);
+      if (iconAnimation && this.nativeOwnedView.length) this.startIconAnimation(this.cursor);
+      return;
+    }
     const { dexEntry } = getStarterData(starterId);
 
     // Stop animation for the previously selected starter
@@ -2754,6 +2987,11 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   private setPartyStarter(starterId: StarterSpeciesId): void {
+    if (this.nativeOwnedContext) {
+      this.lastStarterId = starterId;
+      this.showNativeOwnedSummary(this.nativeOwnedParty[this.partyIconsCursorIndex]);
+      return;
+    }
     const { dexEntry } = getStarterData(starterId);
 
     // Set the cursors, using preferences if possible, default options otherwise
@@ -2786,6 +3024,11 @@ export class StarterSelectUiHandler extends MessageUiHandler {
    */
 
   protected stopIconAnimation(cursor: number): void {
+    if (this.nativeOwnedContext) {
+      const icon = this.starterContainers[cursor]?.icon;
+      if (icon) this.iconAnimHandler.addOrUpdate(icon, PokemonIconAnimMode.NONE);
+      return;
+    }
     const container = this.starterContainers[cursor];
     if (!container) {
       return;
@@ -2816,6 +3059,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
    * @param save - whether the new details should be saved to local storage.
    */
   private setStarterDetails(starterId: StarterSpeciesId, save = true): void {
+    if (this.nativeOwnedContext) {
+      this.showNativeOwnedSummary(this.partyCursorObj.visible ? this.nativeOwnedParty[this.partyIconsCursorIndex] : this.nativeOwnedView[this.scrollCursor*COLUMNS+this.cursor]);
+      return;
+    }
     const starterDetails = getStarterDetailsFromPreferences(starterId, this.starterPreferences[starterId]);
     const { shiny, variant, female, formIndex, abilityIndex, natureIndex, teraType } = starterDetails;
 
@@ -2979,6 +3226,20 @@ export class StarterSelectUiHandler extends MessageUiHandler {
    * @param index - the index of the starter to remove in the party.
    */
   private popPartyStarter(index: number): void {
+    if (this.nativeOwnedContext) {
+      this.nativeOwnedParty.splice(index,1);
+      this.syncNativeOwnedParty();
+      this.partyIconsCursorIndex = Math.max(0,Math.min(this.partyIconsCursorIndex,this.nativeOwnedParty.length-1));
+      if (this.partyCursorObj.visible && this.nativeOwnedParty.length) this.movePartyIconsCursor(this.partyIconsCursorIndex);
+      if (!this.nativeOwnedParty.length) {
+        this.partyCursorObj.setVisible(false);
+        this.startCursorObj.setVisible(false);
+        this.setFilterMode(false);
+        this.setCursor(0);
+      }
+      this.renderNativeOwnedGrid();
+      return;
+    }
     this.partyStarterIds.splice(index, 1);
     this.partyStarters.splice(index, 1);
 
@@ -3033,6 +3294,7 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
   // TODO: Dedupe from pokedex
   protected updateStarterValueLabel(starter: StarterContainer): void {
+    if (this.nativeOwnedContext) return;
     const speciesId = starter.species.speciesId as StarterSpeciesId;
     const baseStarterValue = speciesDataRegistry.getStarterCost(speciesId);
     if (baseStarterValue == null) {
@@ -3066,6 +3328,10 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   private tryUpdateValue(add = 0, addingToParty?: boolean): boolean {
+    if (this.nativeOwnedContext) {
+      this.valueLimitLabel.setText(`${this.nativeOwnedParty.length}/${this.nativeOwnedContext.firstStarter ? 1 : 6}`);
+      return this.nativeOwnedParty.length <= (this.nativeOwnedContext.firstStarter ? 1 : 6);
+    }
     const value = getPartyValue(this.partyStarterIds);
     const newValue = value + add;
     const valueLimit = getRunValueLimit();
@@ -3202,6 +3468,12 @@ export class StarterSelectUiHandler extends MessageUiHandler {
 
   /** Check that each pokemon in the party is valid for the current challenge. */
   private isPartyValid(): boolean {
+    if (this.nativeOwnedContext) {
+      try {
+        validateNativeTeam(this.nativeOwnedContext.records,this.nativeOwnedParty.map(r=>r.id),this.nativeOwnedContext.firstStarter);
+        return true;
+      } catch { return false; }
+    }
     let canStart = false;
     for (let s = 0; s < this.partyStarterIds.length; s++) {
       const starterId = this.partyStarterIds[s];
@@ -3222,6 +3494,12 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   private toggleShowIvsMode(on = !this.showIvsMode): void {
+    if (this.nativeOwnedContext) {
+      this.showIvsMode = on;
+      if (on) this.starterSummary.showIvs(); else this.starterSummary.hideIvs(true);
+      this.updateInstructions();
+      return;
+    }
     if (on) {
       this.showIvsMode = true;
       this.starterSummary.showIvs();
@@ -3286,6 +3564,27 @@ export class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   public override clear(): void {
+    if (this.nativeOwnedContext) {
+      super.clear();
+      this.nativeOwnedContext = undefined;
+      this.nativeOwnedView = [];
+      this.nativeOwnedParty = [];
+      this.partyStarters.length = 0;
+      this.partyStarterIds.length = 0;
+      this.starterSelectContainer.setVisible(false);
+      this.instructionsContainer.hideInstructions();
+      this.starterSummary.clear();
+      this.randomCursorObj.setVisible(false);
+      this.partyCursorObj.setVisible(false);
+      this.startCursorObj.setVisible(false);
+      this.starterCursorObjs.forEach(cursor=>cursor.setVisible(false));
+      this.partyIcons.forEach(icon=>icon.setTexture("pokemon_icons_0").setFrame("unknown"));
+      this.nativeBoxLabel.setText(i18next.t("starterSelectUiHandler:randomize"));
+      this.blockInput = false;
+      this.showIvsMode = false;
+      this.starterSummary.hideIvs(false);
+      return;
+    }
     super.clear();
 
     saveStarterPreferences(this.originalStarterPreferences);
