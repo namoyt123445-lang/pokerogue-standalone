@@ -30,8 +30,8 @@ const routes = JSON.parse(await readFile("dist/_routes.json", "utf8"));
 assert(routes.include.includes("/api/fan/*"));
 assert.equal((await worker.fetch(new Request("https://example.test/api/fan/me"),env)).status,503);
 const account = await readFile("dist/account.html", "utf8");
-assert(account.includes('autocomplete="current-password"'));
-assert(account.includes("No email recovery"));
+assert(account.includes('http-equiv="refresh"'));
+assert(account.includes("inside PokéRogue"));
 assert(html.includes("data-fan-presentation"));
 for (const file of ["account-page.js","account.css","cloud.js","privacy.html","title-landscape.png","presentation.css"]) {
   assert((await readFile(`dist/${file}`)).length > 0, file);
@@ -39,6 +39,8 @@ for (const file of ["account-page.js","account.css","cloud.js","privacy.html","t
 for(const file of ["daycare.html","daycare-client.js","breeding-rules.js","breeding-data-license.txt"]) {
   assert((await readFile(`dist/${file}`)).length>0,file);
 }
+assert((await readFile("dist/scenery/facilities/daycare-building.png")).length>0);
+assert((await readFile("dist/scenery/facilities/CREDITS.md","utf8")).includes("PkmnAlexandrite"));
 assert.equal((await worker.fetch(new Request("https://example.test/api/fan/daycare"),env)).status,503);
 for (const [, biome] of biomeScenery) {
   const png = await readFile(`dist/images/arenas/${biome}_bg.png`);

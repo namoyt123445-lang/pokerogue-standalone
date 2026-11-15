@@ -9,6 +9,8 @@ import { initialStarterCandidates, restoreCompanion } from "../../../src/fan/own
 import type { OwnedRecord, PokemonSnapshot } from "../../../src/fan/ownership-store";
 import { TrainerHub } from "../../../src/fan/daycare";
 import * as daycareClient from "../../../standalone-public/daycare-client.js";
+import { TrainerHubUiHandler } from "../../../src/ui/handlers/trainer-hub-ui-handler";
+import { LoginOrRegisterUiHandler } from "../../../src/ui/handlers/login-or-register-ui-handler";
 import Phaser from "phaser";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -75,21 +77,51 @@ describe("Native PokéRogue owned-party integration", () => {
     child.destroy();
 
     vi.spyOn(daycareClient,"getDaycareStatus").mockReturnValue({
-      state:{gems:30,slots:1,eggs:[],legendaryNextAt:0,daily:{battles:0}},
-      rules:{slotPrices:[25]},parents:[],quests:[],
+      state:{gems:30,slots:1,eggs:[],legendaryNextAt:0,daily:{battles:0},totalBattles:0},
+      rules:{slotPrices:[25]},
+      parents:[
+        {id:record.id,name:"Bulbasaur",level:5,shiny:false,data:{species:1,gender:1}},
+        {id:duplicate.id,name:"Bulbasaur",level:5,shiny:false,data:{species:1,gender:0}},
+      ],
+      quests:[{id:"victories-10",name:"Finding your stride",description:"Win 10 battles",progress:0,goal:10,gems:10,claimed:false}],
     });
     // Headless fixture has no texture uploader; verify menu behavior separately.
-    const artwork={draw:vi.fn(),destroy:vi.fn()};
-    const hub=new TrainerHub({},()=>artwork);
+    const artwork={render:vi.fn(),destroy:vi.fn()};
+    game.scene.ui.handlers[UiMode.TRAINER_HUB]=new TrainerHubUiHandler(()=>artwork);
+    const catalog={1:{id:1,name:"Bulbasaur",groups:[1],root:1,legendary:false}};
+    const hub=new TrainerHub(catalog,[record,duplicate]);
     hub.open();
-    await vi.waitUntil(()=>game.scene.ui.mode===UiMode.OPTION_SELECT);
+    await vi.waitUntil(()=>game.scene.ui.mode===UiMode.TRAINER_HUB);
     const hubHandler=game.scene.ui.getHandler();
+    // Opens directly into Daycare: no Trainer Hub landing page.
+    expect(artwork.render.mock.lastCall?.[0].title).toBe("Daycare Nursery");
     expect(hubHandler.processInput(Button.RIGHT)).toBe(true);
     expect(hub["tab"]).toBe(2);
     expect(hubHandler.processInput(Button.LEFT)).toBe(true);
     expect(hub["tab"]).toBe(1);
-    expect(artwork.draw).toHaveBeenCalledWith(2);
+    expect(artwork.render.mock.calls.some(call=>call[0].title==="Breeding Center")).toBe(true);
+    hubHandler.processInput(Button.RIGHT);
+    hubHandler.processInput(Button.RIGHT);
+    expect(artwork.render.mock.lastCall?.[0].title).toBe("Quest Board");
+    artwork.render.mock.lastCall?.[2](0); // Open quest details.
+    expect(artwork.render.mock.lastCall?.[0].title).toBe("Finding your stride");
+    expect(artwork.render.mock.lastCall?.[0].cards[0].disabled).toBe(true);
+    hubHandler.processInput(Button.CANCEL);
+    hubHandler.processInput(Button.LEFT); // Directly to Breeding.
+    artwork.render.mock.lastCall?.[2](0); // Choose parents.
+    artwork.render.mock.lastCall?.[2](0); // First individual.
+    expect(artwork.render.mock.lastCall?.[0].title).toBe("Choose a partner");
+    artwork.render.mock.lastCall?.[2](0); // Second individual.
+    expect(artwork.render.mock.lastCall?.[0].title).toBe("Bulbasaur egg");
+    expect(artwork.render.mock.lastCall?.[0].hero).toHaveLength(3);
+    expect(artwork.render.mock.lastCall?.[0].cards[0].details).toContain("Cost: 5 Gems");
+    expect(artwork.render.mock.calls.some(call=>call[0].title==="Trainer Hub")).toBe(false);
     expect(document.querySelector("iframe")).toBeNull();
     game.scene.ui.revertMode();
+    vi.stubEnv("MODE","standalone");
+    try {
+      expect(new LoginOrRegisterUiHandler().getButtonLabels()).toHaveLength(3);
+      expect(new LoginOrRegisterUiHandler().getButtonLabels()).toContain("Guest");
+    } finally { vi.unstubAllEnvs(); }
   });
 });

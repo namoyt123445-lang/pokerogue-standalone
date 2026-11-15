@@ -130,7 +130,7 @@ export async function reconcile() {
     await writeSnapshot(cloud.save,cloud.revision);
     return;
   }
-  throw new Error("Both this device and the cloud have changed. Choose which save to keep on the Account page.");
+  throw new Error("Both this device and the cloud have changed. Choose which save to keep in Account / Cloud save.");
 }
 export async function syncCloud() {
   if (!activeUser || blocked) return;

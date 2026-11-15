@@ -5,6 +5,7 @@ import type { ModalConfig } from "#types/ui-types";
 import type { InputFieldConfig } from "#ui/form-modal-ui-handler";
 import { OAuthProvidersUiHandler } from "#ui/oauth-providers-ui-handler";
 import i18next from "i18next";
+import { api } from "../../../standalone-public/cloud.js";
 
 // TODO: Consider replacing server error strings with numeric error codes for better maintainability
 // TODO: Centralize server error constants
@@ -80,7 +81,7 @@ export class LoginFormUiHandler extends OAuthProvidersUiHandler {
       return false;
     }
     const config = args[0] as ModalConfig;
-    this.processExternalProvider();
+    if (import.meta.env.MODE !== "standalone") this.processExternalProvider();
     this.showInfoContainer(config);
     const originalLoginAction = this.submitAction;
     this.submitAction = () => {
@@ -89,7 +90,8 @@ export class LoginFormUiHandler extends OAuthProvidersUiHandler {
       }
       // Prevent overlapping overrides on action modification
       this.submitAction = originalLoginAction;
-      this.sanitizeInputs();
+      if (import.meta.env.MODE === "standalone") this.inputs[0].text = this.inputs[0].text.trim();
+      else this.sanitizeInputs();
       globalScene.ui.setMode(UiMode.LOADING, { buttonActions: [] });
       const onFail = (error: string | null) => {
         globalScene.ui.setMode(UiMode.LOGIN_FORM, Object.assign(config, { errorMessage: error?.trim() }));
@@ -100,6 +102,12 @@ export class LoginFormUiHandler extends OAuthProvidersUiHandler {
       }
 
       const [usernameInput, passwordInput] = this.inputs;
+      if (import.meta.env.MODE === "standalone") {
+        void api("login", "POST", { username: usernameInput.text, password: passwordInput.text })
+          .then(() => originalLoginAction?.())
+          .catch(error => onFail(error.message));
+        return;
+      }
 
       pokerogueApi.account
         .login({

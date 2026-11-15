@@ -26,6 +26,7 @@ export class LoginOrRegisterUiHandler extends LoginRegisterInfoContainerUiHandle
   }
 
   public override getButtonLabels(): string[] {
+    if (import.meta.env.MODE === "standalone") return [i18next.t("menu:login"), i18next.t("menu:register"), "Guest"];
     return [i18next.t("menu:login"), i18next.t("menu:register")];
   }
 

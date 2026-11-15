@@ -11,6 +11,8 @@ import { executeIf, sessionIdKey } from "#utils/common";
 import { getCookie, removeCookie } from "#utils/cookies";
 import { consumeOAuthError, type OAuthError } from "#utils/oauth-utils";
 import i18next, { t } from "i18next";
+import { getAccountUser } from "../../standalone-public/cloud.js";
+import { getAccountBootstrapError, openNativeAccount } from "../fan/account-ui";
 
 export class LoginPhase extends Phase {
   public readonly phaseName = "LoginPhase";
@@ -35,6 +37,12 @@ export class LoginPhase extends Phase {
     const { gameData, ui } = globalScene;
 
     super.start();
+    if (import.meta.env.MODE === "standalone") {
+      if (getAccountBootstrapError()) { openNativeAccount(getAccountBootstrapError()); return; }
+      if (!getAccountUser() && sessionStorage.getItem("fan-native-guest") !== "1") {
+        this.showLoginRegister(); return;
+      }
+    }
 
     this.oauthError = consumeOAuthError();
 
@@ -118,7 +126,11 @@ export class LoginPhase extends Phase {
 
     audioManager.playSound("ui/menu_open");
 
-    ui.setMode(UiMode.LOGIN_OR_REGISTER, { buttonActions: [goToLoginButton, goToRegistrationButton] });
+    const buttonActions = [goToLoginButton, goToRegistrationButton];
+    if (import.meta.env.MODE === "standalone") buttonActions.push(() => {
+      sessionStorage.setItem("fan-native-guest", "1"); void this.start();
+    });
+    ui.setMode(UiMode.LOGIN_OR_REGISTER, { buttonActions });
   }
 
   private async checkUserInfo(): Promise<boolean> {
@@ -139,6 +151,12 @@ export class LoginPhase extends Phase {
 
   public goToLogin(): void {
     const { gameData, ui, phaseManager } = globalScene;
+    if (import.meta.env.MODE === "standalone") {
+      ui.setMode(UiMode.LOGIN_FORM, { buttonActions: [
+        () => { sessionStorage.removeItem("fan-native-guest"); window.location.reload(); },
+        () => this.showLoginRegister(),
+      ] }); return;
+    }
 
     const backButton = () => {
       phaseManager.unshiftNew("LoginPhase", false);
@@ -170,6 +188,12 @@ export class LoginPhase extends Phase {
 
   public goToRegister(): void {
     const { phaseManager, ui } = globalScene;
+    if (import.meta.env.MODE === "standalone") {
+      ui.setMode(UiMode.REGISTRATION_FORM, { buttonActions: [
+        () => { sessionStorage.removeItem("fan-native-guest"); window.location.reload(); },
+        () => this.showLoginRegister(),
+      ] }); return;
+    }
 
     const backButton = () => {
       phaseManager.unshiftNew("LoginPhase", false);

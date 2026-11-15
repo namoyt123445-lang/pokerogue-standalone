@@ -64,6 +64,7 @@ import { UnavailableModalUiHandler } from "#ui/unavailable-modal-ui-handler";
 import { executeIf } from "#utils/common";
 import i18next from "i18next";
 import Phaser from "phaser";
+import { TrainerHubUiHandler } from "#ui/trainer-hub-ui-handler";
 
 const transitionModes = [
   UiMode.SAVE_SLOT,
@@ -81,6 +82,7 @@ const transitionModes = [
 ];
 
 const noTransitionModes = [
+  UiMode.TRAINER_HUB,
   UiMode.TITLE,
   UiMode.CONFIRM,
   UiMode.OPTION_SELECT,
@@ -184,6 +186,7 @@ export class UI extends Phaser.GameObjects.Container {
       new MysteryEncounterUiHandler(),
       new ChangePasswordFormUiHandler(),
       new AlertModalUiHandler(),
+      new TrainerHubUiHandler(),
     ];
   }
 

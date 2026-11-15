@@ -29,6 +29,7 @@ import { getAccountUser, syncCloud } from "../../standalone-public/cloud.js";
 import { setArenaBackgroundTexture } from "../fan/arena-background";
 import { installDaycareStatus, openDaycare } from "../fan/daycare";
 import { materializeDaycareCollection } from "../fan/ownership";
+import { openNativeAccount } from "../fan/account-ui";
 
 const NO_SAVE_SLOT = -1;
 
@@ -204,14 +205,24 @@ export class TitlePhase extends Phase {
       },
     );
     if (individualOwnershipEnabled) options.push({
-      label: "Breeding Center / Daycare",
+      label: "Daycare / Breeding",
       handler: () => openDaycare(),
+      keepOpen: true,
+    });
+    if (individualOwnershipEnabled) options.push({
+      label: "Pokémon Boxes",
+      handler: () => openDaycare(0),
+      keepOpen: true,
+    }, {
+      label: "Quest Board",
+      handler: () => openDaycare(3),
+      keepOpen: true,
     });
     if (individualOwnershipEnabled) options.push({
       label: getAccountUser() ? "Account / Cloud save" : "Log in / Create account",
+      keepOpen: true,
       handler: () => {
-        void syncCloud().catch(console.error).finally(() => { window.location.href = "/account.html"; });
-        return true;
+        return openNativeAccount();
       },
     });
     const config: OptionSelectModeConfig = { options, blockCancelButton: true };

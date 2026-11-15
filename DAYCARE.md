@@ -2,6 +2,26 @@
 
 ## Native hub rebuild
 
+The latest revision uses a dedicated native UI mode, not a text option menu.
+There is **no Trainer Hub landing page**. Title/menu entries open Daycare,
+Pokémon Boxes or Quests directly; left/right cycles the feature screens. Artwork
+uses actual existing Pokémon portrait, egg, map and Gem item atlases, plus the
+credited non-commercial Day-Care tile by PkmnAlexandrite/Maxewenx. Rejected
+code-drawn icons and generated facility illustrations are not shipped.
+Pokémon cards
+show native 2D Pokémon portraits and individual details; nursery cards show egg
+progress and hatching details; breeding has parent portraits and a confirmation
+screen; quests have objective/reward pages; Gems have claim/detail pages.
+Pointer, keyboard and gamepad controls share the same actions. Actions are
+disabled while saving, and failed network mutations retain their request UUID
+for retry. Unsupported/missing sprites fall back to the egg illustration.
+
+Standalone authentication now reuses PokéRogue's native login/register windows,
+with a Guest option. Login/register call the same existing account API and reload
+the same game URL to safely initialize the selected account. Account backups,
+guest import, cloud-conflict choices and logout are native game dialogs.
+`/account.html` is now a compatibility redirect to `/`; no separate login page.
+
 Local graphical revision: the hub now has original pixel-sprite tabs (PC, nursery,
 egg, quest scroll and Gem), a native full-screen window, selection highlights and
 clickable tabs/arrows. Left/right keyboard navigation is retained.

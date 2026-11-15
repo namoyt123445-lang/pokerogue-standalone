@@ -9,6 +9,7 @@ import { LoginRegisterInfoContainerUiHandler } from "#ui/login-register-info-con
 import { addTextObject } from "#ui/text";
 import { fixedInt } from "#utils/common";
 import i18next from "i18next";
+import { api } from "../../../standalone-public/cloud.js";
 
 // TODO: Consider replacing server error strings with numeric error codes for better maintainability
 // TODO: Centralize server error constants
@@ -78,7 +79,8 @@ export class RegistrationFormUiHandler extends LoginRegisterInfoContainerUiHandl
   public override setup(): void {
     super.setup();
 
-    const label = addTextObject(10, 87, i18next.t("menu:registrationAgeWarning"), TextStyle.TOOLTIP_CONTENT, {
+    const label = addTextObject(10, 87, import.meta.env.MODE === "standalone"
+      ? "Use a unique password. No email recovery is available." : i18next.t("menu:registrationAgeWarning"), TextStyle.TOOLTIP_CONTENT, {
       fontSize: "42px",
       wordWrap: { width: 850 },
     });
@@ -99,7 +101,8 @@ export class RegistrationFormUiHandler extends LoginRegisterInfoContainerUiHandl
       if (globalScene.tweens.getTweensOf(this.modalContainer).length === 0) {
         // Prevent overlapping overrides on action modification
         this.submitAction = originalRegistrationAction;
-        this.sanitizeInputs();
+        if (import.meta.env.MODE === "standalone") this.inputs[0].text = this.inputs[0].text.trim();
+        else this.sanitizeInputs();
         globalScene.ui.setMode(UiMode.LOADING, { buttonActions: [] });
         const onFail = (error: string) => {
           globalScene.ui.setMode(UiMode.REGISTRATION_FORM, Object.assign(config, { errorMessage: error?.trim() }));
@@ -115,6 +118,12 @@ export class RegistrationFormUiHandler extends LoginRegisterInfoContainerUiHandl
           return onFail(i18next.t("menu:passwordNotMatchingConfirmPassword"));
         }
         const [usernameInput, passwordInput] = this.inputs;
+        if (import.meta.env.MODE === "standalone") {
+          void api("register", "POST", { username: usernameInput.text, password: passwordInput.text })
+            .then(() => originalRegistrationAction?.())
+            .catch(error => onFail(error.message));
+          return;
+        }
         pokerogueApi.account
           .register({
             username: usernameInput.text,

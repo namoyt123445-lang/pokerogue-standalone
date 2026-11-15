@@ -28,6 +28,7 @@ export class LoadingScene extends SceneBase {
 
   preload() {
     if (import.meta.env.MODE === "standalone") this.load.image("fan_title_landscape", "/title-landscape.png");
+    if (import.meta.env.MODE === "standalone") this.load.image("fan_daycare_building", "/scenery/facilities/daycare-building.png");
     localPing();
     const startingBiome = activeOverrides.STARTING_BIOME_OVERRIDE ?? globalScene?.arena?.biomeId ?? BiomeId.TOWN;
     // TODO: Categorize these into sub-methods that make sense

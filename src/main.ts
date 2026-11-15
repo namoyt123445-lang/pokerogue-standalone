@@ -22,9 +22,9 @@ async function startGame(): Promise<void> {
     const { bootstrapAccounts } = await import("../standalone-public/cloud.js");
     try {
       await bootstrapAccounts();
-    } catch {
-      window.location.replace("/account.html?notice=sync");
-      return;
+    } catch (error) {
+      const { setAccountBootstrapError } = await import("./fan/account-ui");
+      setAccountBootstrapError(error instanceof Error ? error.message : "Cloud sync needs attention.");
     }
   }
   const { initSettingsManager } = await import("#app/global-settings-manager");
